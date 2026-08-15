@@ -2,12 +2,30 @@ import { ok, handleError } from "@/lib/api-response";
 import { requireOrgMember } from "@/lib/session";
 import { db } from "@/lib/db";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const user = await requireOrgMember();
+    const url = new URL(request.url);
+    const range = url.searchParams.get("range") ?? "all";
+
+    // Compute date filter based on range
+    let dateFilter: Date | null = null;
+    const now = new Date();
+    if (range === "week") {
+      dateFilter = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    } else if (range === "month") {
+      dateFilter = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    } else if (range === "quarter") {
+      dateFilter = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+    }
 
     const elections = await db.election.findMany({
-      where: { organizationId: user.organizationId },
+      where: {
+        organizationId: user.organizationId,
+        ...(dateFilter
+          ? { OR: [{ startTime: { gte: dateFilter } }, { createdAt: { gte: dateFilter } }] }
+          : {}),
+      },
       select: {
         id: true,
         name: true,

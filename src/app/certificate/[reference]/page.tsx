@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { formatDate } from "@/lib/utils";
 import { PrintButton } from "@/components/shared/print-button";
+import { QrCode } from "@/components/shared/qr-code";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ShieldCheck, Award, Vote, CheckCircle2 } from "lucide-react";
@@ -133,18 +134,29 @@ export default async function CertificatePage({ params }: Params) {
               organized by {election.organization.name}
             </p>
 
-            {/* Verification reference */}
-            <div className="mx-auto mt-8 max-w-md rounded-lg border border-emerald-600/20 bg-emerald-50/50 p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-emerald-600">
-                Verification Reference
-              </p>
-              <p className="mt-1 break-all font-mono text-sm font-bold text-zinc-900">
-                {reference}
-              </p>
-              <p className="mt-2 flex items-center justify-center gap-1 text-[11px] text-zinc-500">
-                <CheckCircle2 className="h-3 w-3 text-emerald-600" />
-                Ballot received and recorded
-              </p>
+            {/* Verification reference + QR code */}
+            <div className="mx-auto mt-8 flex max-w-md flex-col items-center gap-4 rounded-lg border border-emerald-600/20 bg-emerald-50/50 p-4 sm:flex-row">
+              <div className="flex-1 text-left">
+                <p className="text-xs font-medium uppercase tracking-wide text-emerald-600">
+                  Verification Reference
+                </p>
+                <p className="mt-1 break-all font-mono text-sm font-bold text-zinc-900">
+                  {reference}
+                </p>
+                <p className="mt-2 flex items-center gap-1 text-[11px] text-zinc-500">
+                  <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                  Ballot received and recorded
+                </p>
+              </div>
+              <div className="shrink-0 text-center">
+                <QrCode
+                  value={`${process.env.NEXT_PUBLIC_APP_URL ?? ""}/verify-ballot?reference=${encodeURIComponent(reference)}`}
+                  size={100}
+                />
+                <p className="mt-1 text-[9px] text-zinc-500">
+                  Scan to verify
+                </p>
+              </div>
             </div>
 
             {/* Footer */}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { apiFetch } from "@/lib/api-fetch";
 import { cn, formatNumber, formatPercent } from "@/lib/utils";
@@ -48,22 +49,34 @@ const MEDAL_COLORS = [
 export function EngagementLeaderboard() {
   const [data, setData] = useState<EngagementData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [range, setRange] = useState<"all" | "week" | "month" | "quarter">("all");
+
+  const load = useCallback(async (r: string) => {
+    setLoading(true);
+    const res = await apiFetch<EngagementData>(`/api/admin/engagement?range=${r}`);
+    setLoading(false);
+    if (res.success && res.data) {
+      setData(res.data);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       if (cancelled) return;
-      const res = await apiFetch<EngagementData>("/api/admin/engagement");
-      if (cancelled) return;
-      setLoading(false);
-      if (res.success && res.data) {
-        setData(res.data);
-      }
+      await load(range);
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [range, load]);
+
+  const RANGES: { key: typeof range; label: string }[] = [
+    { key: "all", label: "All time" },
+    { key: "quarter", label: "90 days" },
+    { key: "month", label: "30 days" },
+    { key: "week", label: "7 days" },
+  ];
 
   if (loading) {
     return (
@@ -90,7 +103,7 @@ export function EngagementLeaderboard() {
   return (
     <Card className="overflow-hidden">
       <CardHeader className="border-b pb-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <CardTitle className="flex items-center gap-2 text-base">
               <Trophy className="h-4 w-4 text-primary" />
@@ -100,7 +113,24 @@ export function EngagementLeaderboard() {
               Engagement across elections with registered voters
             </CardDescription>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            {/* Time range selector */}
+            <div className="flex gap-0.5 rounded-lg border bg-muted/30 p-0.5">
+              {RANGES.map((r) => (
+                <button
+                  key={r.key}
+                  onClick={() => setRange(r.key)}
+                  className={cn(
+                    "rounded-md px-2 py-0.5 text-[10px] font-medium transition-colors",
+                    range === r.key
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
             <Badge variant="outline" className="gap-1.5">
               <TrendingUp className="h-3 w-3 text-primary" />
               {formatPercent(summary.avgTurnout)} avg

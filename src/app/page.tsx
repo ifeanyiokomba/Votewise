@@ -275,6 +275,9 @@ function Hero() {
     <section className="relative overflow-hidden" aria-labelledby="hero-heading">
       <div className="pointer-events-none absolute inset-0 -z-10 bg-grid" />
       <div className="pointer-events-none absolute inset-0 -z-10 bg-radial-fade" />
+      {/* Decorative floating orbs */}
+      <div className="pointer-events-none absolute -right-20 top-10 -z-10 h-72 w-72 rounded-full bg-primary/10 blur-3xl" />
+      <div className="pointer-events-none absolute -left-20 bottom-10 -z-10 h-64 w-64 rounded-full bg-chart-2/10 blur-3xl" />
 
       <div className="mx-auto max-w-7xl px-4 pb-20 pt-14 sm:px-6 sm:pb-28 sm:pt-20 lg:px-8 lg:pt-24">
         <div className="grid items-center gap-12 lg:grid-cols-2">
@@ -305,7 +308,7 @@ function Hero() {
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Button asChild size="lg" className="group">
+              <Button asChild size="lg" className="group shadow-glow">
                 <Link href="/register">
                   Start Free Election
                   <ArrowRight className="transition-transform group-hover:translate-x-0.5" />

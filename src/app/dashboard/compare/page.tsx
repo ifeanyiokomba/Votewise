@@ -24,6 +24,7 @@ import {
   ArrowRight,
   Activity,
   Download,
+  FileText,
 } from "lucide-react";
 import { cn, formatNumber, formatPercent, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
@@ -192,10 +193,18 @@ export default function ComparePage() {
         title="Election Comparison"
         description="Compare turnout, participation, and engagement across all your elections."
         actions={
-          <Button onClick={exportCsv} variant="outline" size="sm" className="gap-2">
-            <Download className="h-4 w-4" />
-            Export CSV
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={exportCsv} variant="outline" size="sm" className="gap-2">
+              <Download className="h-4 w-4" />
+              CSV
+            </Button>
+            <Button asChild variant="outline" size="sm" className="gap-2">
+              <a href="/compare-report" target="_blank" rel="noopener">
+                <FileText className="h-4 w-4" />
+                PDF Report
+              </a>
+            </Button>
+          </div>
         }
       />
       {/* Summary stats */}

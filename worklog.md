@@ -901,3 +901,76 @@ Task: Assess project status, QA test via agent-browser, add new features, improv
 - **Leaderboard time-range filter** — could add a time-range selector (all-time / this month / this week) to the engagement leaderboard.
 - **Certificate QR code** — could add a QR code to the certificate that links to the public verification page.
 - **Comparison PDF export** — currently CSV only; could add a print-friendly PDF report for the comparison page.
+
+---
+Task ID: CRON-8 (webDevReview round 8)
+Agent: Lead (orchestrator) — cron-triggered continuous review
+Task: Assess project status, QA test via agent-browser, add new features, improve styling.
+
+## Current Project Status Assessment
+- Votewise is fully functional end-to-end. Three services running: Next.js (:3000), socket.io monitor (:3003), election scheduler (background).
+- `bun run lint` passes with 0 errors, 0 warnings.
+- No runtime errors in dev.log.
+- All major flows verified: landing (with hero orbs) → auth → dashboard (with leaderboard + range filter + engagement scoring) → election command center → voter flow → public results → observer view → settings → PDF report → compare (with CSV + PDF export) → certificate (with QR code) → verify-ballot.
+
+## Bugs Found & Fixed
+- No bugs found during this round's QA. All flows from round 7 remain working correctly.
+
+## New Features Added
+
+### 1. Certificate QR Code
+- **New component**: `src/components/shared/qr-code.tsx` — generates a QR code (using `qrcode` library) that encodes the public verification URL (`/verify-ballot?reference=...`). Emerald-tinted QR with white background, bordered.
+- Added the QR code to the certificate page next to the verification reference — scanned QR opens the public ballot verification page.
+- Verified: QR code renders on certificate page.
+
+### 2. Leaderboard Time-Range Filter
+- **Enhanced API**: `GET /api/admin/engagement?range=all|week|month|quarter` — accepts a time-range parameter that filters elections by `startTime` or `createdAt` within the last 7/30/90 days (or all-time).
+- **Enhanced component**: `<EngagementLeaderboard />` now has a time-range selector (All time / 90 days / 30 days / 7 days) as a segmented button group in the card header. Changing the range reloads the leaderboard with the filtered data.
+- Verified: range selector shows 4 options, defaulting to "All time".
+
+### 3. Comparison PDF Export
+- **New page**: `src/app/compare-report/page.tsx` — a server-rendered, print-friendly comparison report with:
+  - Report header with Votewise logo, org name, generation timestamp.
+  - 4 summary stat tiles (total elections, voters, votes, avg turnout).
+  - Turnout comparison bar chart with trophy icons for top 3.
+  - Detailed comparison table with status badges, vote counts, turnout, and dates.
+  - Footer with tamper-evidence note.
+  - `@media print` styles for clean PDF output.
+- Added "PDF Report" button to the compare page header (next to CSV export).
+- Verified: `/compare-report` renders full report with stats, bar chart, and table.
+
+## Styling Improvements
+
+### Landing page hero
+- Added two decorative floating orbs (primary + chart-2 colors) with `blur-3xl` for a premium depth effect.
+- Primary CTA button now has `shadow-glow` for a subtle emerald glow.
+
+## Verification Results
+- `bun run lint`: 0 errors, 0 warnings.
+- agent-browser end-to-end:
+  - ✅ Certificate QR code: renders next to verification reference.
+  - ✅ Leaderboard time-range: 4 options visible (All time / 90 days / 30 days / 7 days).
+  - ✅ Compare PDF report: `/compare-report` renders full report with stats, bar chart, table.
+  - ✅ Compare page: "CSV" and "PDF Report" buttons both visible.
+  - ✅ Landing hero: decorative orbs + glow button.
+  - ✅ No console errors on any tested page.
+
+## Files Modified/Created
+- **Created**: `src/components/shared/qr-code.tsx`, `src/app/compare-report/page.tsx`.
+- **Modified**: `src/app/certificate/[reference]/page.tsx` (added QrCode to verification section), `src/app/api/admin/engagement/route.ts` (time-range filter parameter), `src/components/dashboard/engagement-leaderboard.tsx` (range selector UI + range state), `src/app/dashboard/compare/page.tsx` (PDF Report button + FileText icon), `src/app/page.tsx` (hero floating orbs + shadow-glow button).
+- **Installed**: `qrcode` + `@types/qrcode`.
+
+## Unresolved Issues / Risks / Next-Phase Recommendations
+- **No real SMS/email/WhatsApp provider** — OTP delivered via in-app Notification log + devCode hint. Wire Resend/Termii for production.
+- **Payments simulated** — no Paystack webhook. Add real webhook verification.
+- **No automated tests** — recommend adding vitest for vote.service, result.service, election transitions, otp.service, engagement scoring, compare API, certificate verification, and QR generation.
+- **No MFA for admins** — recommend adding TOTP-based MFA for ORG_OWNER/ORG_ADMIN/PLATFORM_ADMIN roles.
+- **Subdomain multi-tenancy** — `tenant.ts` resolution exists but single-port sandbox serves one org. Enable in production.
+- **Observer authentication** — the observer view is currently public. Add token-based observer authentication with signed links and expiry.
+- **Scheduler restart-on-reboot** — the scheduler runs as a background process; add it to a process manager or systemd for production reliability.
+- **Real-time auto-transition notifications** — when the scheduler transitions an election, it should trigger notifications based on saved preferences.
+- **Cross-election voter deduplication** — the same voter may participate in multiple elections; could add a unified voter identity view linking voters across elections by email/phone.
+- **Engagement scoring history** — currently scores are computed on-the-fly; could persist historical scores over time to track engagement trends.
+- **Certificate digital signature** — could add a cryptographic signature to the certificate for tamper-evidence.
+- **Engagement scoring export** — could add CSV/PDF export of the engagement leaderboard.
+- **Comparison time-range filter** — could add the same time-range filter to the comparison page.
