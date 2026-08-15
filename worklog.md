@@ -432,3 +432,78 @@ Task: Assess project status, QA test via agent-browser, fix bugs, add new featur
 - **Election duplication** — no "Duplicate election" feature to clone setup. Would speed up recurring elections.
 - **Notification preferences** — admins can't configure which notifications they receive. Recommend a preferences panel in Settings.
 - **Real-time dashboard** — the live monitor badge is in the election header, but the dashboard overview doesn't show real-time updates. Could add a live activity feed via socket.io.
+
+---
+Task ID: CRON-2 (webDevReview round 2)
+Agent: Lead (orchestrator) — cron-triggered continuous review
+Task: Assess project status, QA test via agent-browser, add new features, improve styling.
+
+## Current Project Status Assessment
+- Votewise is fully functional end-to-end. Both services (Next.js :3000 + socket.io monitor :3003) running cleanly.
+- `bun run lint` passes with 0 errors, 0 warnings.
+- No runtime errors in dev.log.
+- All major flows verified: landing → auth → dashboard → election command center → voter flow → public results.
+
+## Bugs Found & Fixed
+- No bugs found during this round's QA. All flows from round 1 remain working correctly.
+
+## New Features Added
+
+### 1. Observer Management UI (election command center → Observers tab)
+- **New API routes**: `GET/POST /api/elections/[id]/observers` (list + add observer) and `DELETE /api/elections/[id]/observers/[observerId]` (remove).
+- **Observer add flow**: enter name + email → finds or creates an OBSERVER-role user in the org → creates an Observer record linked to the election. Prevents assigning existing admin-role users as observers (role conflict guard). Prevents duplicate observer assignments.
+- **Observers page** (`/dashboard/elections/[id]/observers`): summary bar (observer count + read-only access badge), observer cards (avatar, name, email, last-seen, active/disabled badge, remove button with confirmation AlertDialog), empty state with "Add first observer" CTA, add-observer Dialog with privacy note.
+- Added "Observers" tab to `ELECTION_TABS` in nav-config.ts.
+- Verified: added "Dr. Emeka Obi" as observer to the LIVE election — appeared instantly in the list.
+
+### 2. Election Duplication (one-click clone)
+- **New API route**: `POST /api/elections/[id]/duplicate` — creates a new DRAFT election with "(Copy)" suffix, copies all positions + candidates (NOT voters/votes/sessions), moves to CONFIGURATION status. Uses a Prisma transaction for atomicity. Logs an audit event.
+- **Duplicate button** added to every `<ElectionCard>` — a Copy icon button next to the main action button. Shows a loading spinner during duplication, then redirects to the new election.
+- Verified: elections count went from 3 → 4 after clicking duplicate, redirected to the new election's command center. (Cleaned up the test duplicate afterward.)
+
+### 3. Real-time Dashboard Activity Feed (socket.io)
+- **Enhanced monitor service** (`mini-services/monitor-service/index.ts`): added `subscribe:org` / `unsubscribe:org` socket events. On subscription, emits `org:stats` (total voters, total votes, active/live elections, verified voters) and `org:activity` (merged feed of recent votes, verifications, and audit logs across the org — voter-anonymous). Broadcasts every 3 seconds.
+- **New component**: `src/components/dashboard/live-activity-feed.tsx` — connects to the monitor via `io("/?XTransformPort=3003")`, subscribes to the org, displays a timeline-style activity feed with type-specific icons (vote=primary, verification=emerald, audit=amber, security=red). Shows "Live"/"Connecting" connection badge with pulse indicator.
+- **HTTP fallback**: fetches initial activity from `/api/admin/stats` (recentAudit) so the feed has data even before the socket connects (works in direct localhost mode without the gateway).
+- Injected into the dashboard overview sidebar alongside the (shortened) static recent-audit card.
+- Verified: "Live activity" panel appears with audit log entries even in direct localhost mode (via HTTP fallback).
+
+## Styling Improvements
+
+### Voter landing page (`/vote/[id]`)
+- **Hero**: upgraded to a gradient panel (`from-primary/5 via-accent/30 to-background`) with blurred decorative orbs (primary + chart-2 colors).
+- **"How voting works" steps**: redesigned from a flat list to centered cards with numbered badges, ring-4 background cutouts, a connecting gradient line on desktop (`from-primary/20 via-primary/40 to-primary/20`), and hover-border-primary transition.
+- **Trust strip**: upgraded from inline text to a bordered panel with pill-shaped badges on a muted background.
+
+### Public results page (`/results/[id]`)
+- **Hero**: upgraded to the same gradient panel style with blurred decorative orbs, matching the voter landing page for visual consistency.
+
+### Dashboard overview
+- Added the `<LiveActivityFeed>` component to the sidebar, replacing the old static "Recent activity" card (which was renamed to "Recent audit" and shortened to 6 items).
+
+## Verification Results
+- `bun run lint`: 0 errors, 0 warnings.
+- agent-browser end-to-end:
+  - ✅ Dashboard live activity feed visible with HTTP fallback data.
+  - ✅ Dashboard gradient header with "All systems operational" pulse.
+  - ✅ Observers tab renders in election command center.
+  - ✅ Observer "Dr. Emeka Obi" successfully added and visible in the list.
+  - ✅ Election duplication: 3 → 4 elections, redirected to new election.
+  - ✅ Voter landing page enhanced hero + "How voting works" steps.
+  - ✅ Public results gradient hero.
+  - ✅ No console errors on any tested page.
+
+## Files Modified/Created
+- **Created**: `src/app/api/elections/[id]/observers/route.ts`, `src/app/api/elections/[id]/observers/[observerId]/route.ts`, `src/app/api/elections/[id]/duplicate/route.ts`, `src/app/dashboard/elections/[id]/observers/page.tsx`, `src/components/dashboard/live-activity-feed.tsx`.
+- **Modified**: `src/components/dashboard/nav-config.ts` (Observers tab), `src/components/dashboard/election-card.tsx` (duplicate button), `src/components/dashboard/dashboard-shell.tsx` (voters title), `src/app/dashboard/page.tsx` (live activity feed + gradient header), `src/app/(voter)/vote/[id]/page.tsx` (gradient hero + enhanced steps + trust strip), `src/app/(voter)/results/[id]/page.tsx` (gradient hero), `mini-services/monitor-service/index.ts` (org activity broadcasting).
+
+## Unresolved Issues / Risks / Next-Phase Recommendations
+- **No real SMS/email/WhatsApp provider** — OTP delivered via in-app Notification log + devCode hint. Wire Resend/Termii for production.
+- **Payments simulated** — no Paystack webhook. Add real webhook verification.
+- **No automated tests** — recommend adding vitest for vote.service, result.service, election transitions, otp.service, and the new observer/duplicate APIs.
+- **No MFA for admins** — recommend adding TOTP-based MFA for ORG_OWNER/ORG_ADMIN/PLATFORM_ADMIN roles.
+- **Subdomain multi-tenancy** — `tenant.ts` resolution exists but single-port sandbox serves one org. Enable in production.
+- **Observer access UI** — observers can be assigned but there's no dedicated observer-facing dashboard yet. Recommend building a read-only observer view at `/observe/[id]` showing turnout, verification rates, and (if permitted) live results.
+- **Notification preferences** — admins can't configure which notifications they receive. Recommend a preferences panel in Settings.
+- **Audit log filtering** — the audit page has basic filters but could benefit from date-range and actor-specific filtering.
+- **Election templates** — could add pre-built election templates (e.g. "Student Union", "Board Election") to speed up setup.

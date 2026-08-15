@@ -44,6 +44,7 @@ export const ELECTION_TABS = [
   { label: "Positions", value: "positions", href: "/positions" },
   { label: "Candidates", value: "candidates", href: "/candidates" },
   { label: "Voters", value: "voters", href: "/voters" },
+  { label: "Observers", value: "observers", href: "/observers" },
   { label: "Results", value: "results", href: "/results" },
   { label: "Activate", value: "activate", href: "/activate" },
 ] as const;

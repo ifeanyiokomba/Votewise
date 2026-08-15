@@ -268,21 +268,25 @@ function LandingInner() {
         initial={reduce ? false : { opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: "easeOut" }}
-        className="text-center"
+        className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/5 via-accent/30 to-background p-6 text-center sm:p-8"
       >
-        <div className="mb-3 flex justify-center">
-          <StatusBadge status={status} className="text-sm" />
+        <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-primary/10 blur-3xl" />
+        <div className="absolute bottom-0 left-1/4 h-24 w-24 translate-y-6 rounded-full bg-chart-2/10 blur-3xl" />
+        <div className="relative">
+          <div className="mb-3 flex justify-center">
+            <StatusBadge status={status} className="text-sm" />
+          </div>
+          <h1 className="text-balance text-2xl font-bold leading-tight tracking-tight sm:text-3xl">
+            {electionName}
+          </h1>
+          <p className="mx-auto mt-2 max-w-md text-balance text-sm text-muted-foreground sm:text-base">
+            {isPublished
+              ? "This election has concluded and the results are now public."
+              : isLive
+                ? "Verify your identity to receive your ballot. Your vote is secret and your choices cannot be traced back to you."
+                : "Welcome. Voting for this election is not currently open."}
+          </p>
         </div>
-        <h1 className="text-balance text-2xl font-bold leading-tight tracking-tight sm:text-3xl">
-          {electionName}
-        </h1>
-        <p className="mx-auto mt-2 max-w-md text-balance text-sm text-muted-foreground sm:text-base">
-          {isPublished
-            ? "This election has concluded and the results are now public."
-            : isLive
-              ? "Verify your identity to receive your ballot. Your vote is secret and your choices cannot be traced back to you."
-              : "Welcome. Voting for this election is not currently open."}
-        </p>
       </motion.div>
 
       {/* Closed / Scheduled / Published states */}
@@ -413,7 +417,7 @@ function LandingInner() {
       )}
 
       {/* How voting works */}
-      <Card className="border-border/60 bg-secondary/30">
+      <Card className="overflow-hidden border-border/60 bg-secondary/30">
         <CardHeader>
           <CardTitle className="text-base">How voting works</CardTitle>
           <CardDescription className="sr-only">
@@ -421,21 +425,23 @@ function LandingInner() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ol className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <ol className="relative grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {/* Connecting line on desktop */}
+            <div className="absolute left-[12%] right-[12%] top-[22px] hidden h-px bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20 sm:block" aria-hidden />
             {FLOW_STEPS.map((s, idx) => (
               <li
                 key={s.label}
-                className="flex flex-col items-start gap-2 rounded-lg border border-border/60 bg-background p-3"
+                className="relative flex flex-col items-center gap-2 rounded-xl border border-border/60 bg-background p-4 text-center transition-all hover:border-primary/30 hover:shadow-sm"
               >
-                <div className="flex items-center gap-2">
-                  <span className="grid size-7 place-items-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                <div className="relative grid size-10 place-items-center rounded-full bg-primary/10 text-primary ring-4 ring-background">
+                  <s.icon className="size-5" />
+                  <span className="absolute -right-1 -top-1 grid size-5 place-items-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
                     {idx + 1}
                   </span>
-                  <s.icon className="size-4 text-primary" />
                 </div>
-                <div>
+                <div className="mt-1">
                   <div className="text-sm font-semibold">{s.label}</div>
-                  <p className="text-xs text-muted-foreground">{s.desc}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{s.desc}</p>
                 </div>
               </li>
             ))}
@@ -444,16 +450,16 @@ function LandingInner() {
       </Card>
 
       {/* Trust strip */}
-      <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
-        <span className="inline-flex items-center gap-1.5">
+      <div className="flex flex-wrap items-center justify-center gap-2 rounded-xl border bg-muted/30 p-3 text-xs text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5 rounded-lg bg-background px-2.5 py-1.5">
           <ShieldCheck className="size-3.5 text-primary" />
           Tamper-evident receipts
         </span>
-        <span className="inline-flex items-center gap-1.5">
+        <span className="inline-flex items-center gap-1.5 rounded-lg bg-background px-2.5 py-1.5">
           <LockKeyhole className="size-3.5 text-primary" />
           Anonymous ballot storage
         </span>
-        <span className="inline-flex items-center gap-1.5">
+        <span className="inline-flex items-center gap-1.5 rounded-lg bg-background px-2.5 py-1.5">
           <Vote className="size-3.5 text-primary" />
           One voter, one ballot
         </span>

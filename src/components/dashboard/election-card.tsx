@@ -1,19 +1,24 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { apiFetch } from "@/lib/api-fetch";
 import { cn, formatDate, formatNumber, timeUntil } from "@/lib/utils";
-import { ArrowRight, CalendarClock, Users, Vote, UserSquare2 } from "lucide-react";
+import { toast } from "sonner";
+import { ArrowRight, CalendarClock, Users, Vote, UserSquare2, Copy, Loader2 } from "lucide-react";
 import type { ElectionDTO } from "./types";
 
 interface ElectionCardProps {
   election: ElectionDTO;
   index?: number;
+  onDuplicated?: (newId: string) => void;
 }
 
 function actionForStatus(status: string): { label: string; variant: "default" | "outline" | "secondary" } {
@@ -45,7 +50,9 @@ function actionForStatus(status: string): { label: string; variant: "default" | 
   }
 }
 
-export function ElectionCard({ election, index = 0 }: ElectionCardProps) {
+export function ElectionCard({ election, index = 0, onDuplicated }: ElectionCardProps) {
+  const router = useRouter();
+  const [duplicating, setDuplicating] = useState(false);
   const voters = election._count?.voters ?? 0;
   const positions = election._count?.positions ?? 0;
   const candidates = election._count?.candidates ?? 0;
@@ -148,21 +155,53 @@ export function ElectionCard({ election, index = 0 }: ElectionCardProps) {
             )}
           </div>
 
-          <Button
-            asChild
-            size="sm"
-            variant={action.variant}
-            className="w-full"
-            disabled={isArchived}
-          >
-            <Link
-              href={`/dashboard/elections/${election.id}`}
-              className={cn(isArchived && "pointer-events-none opacity-60")}
+          <div className="mt-auto flex items-center gap-2">
+            <Button
+              asChild
+              size="sm"
+              variant={action.variant}
+              className="flex-1"
+              disabled={isArchived}
             >
-              {action.label}
-              {!isArchived && <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />}
-            </Link>
-          </Button>
+              <Link
+                href={`/dashboard/elections/${election.id}`}
+                className={cn(isArchived && "pointer-events-none opacity-60")}
+              >
+                {action.label}
+                {!isArchived && <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />}
+              </Link>
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="px-2.5"
+              disabled={duplicating}
+              onClick={async () => {
+                setDuplicating(true);
+                const res = await apiFetch<{ election: { id: string } }>(
+                  `/api/elections/${election.id}/duplicate`,
+                  { method: "POST" }
+                );
+                setDuplicating(false);
+                if (!res.success || !res.data?.election) {
+                  toast.error("Could not duplicate election", { description: res.error?.message });
+                  return;
+                }
+                toast.success("Election duplicated", {
+                  description: "Positions and candidates copied. Voters and votes are not carried over.",
+                });
+                if (onDuplicated) {
+                  onDuplicated(res.data.election.id);
+                } else {
+                  router.push(`/dashboard/elections/${res.data.election.id}`);
+                }
+              }}
+              title="Duplicate election (copy positions & candidates)"
+              aria-label="Duplicate election"
+            >
+              {duplicating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Copy className="h-3.5 w-3.5" />}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </motion.div>

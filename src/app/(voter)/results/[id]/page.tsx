@@ -204,19 +204,23 @@ function ResultsInner() {
         initial={reduce ? false : { opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: "easeOut" }}
-        className="text-center"
+        className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/8 via-accent/30 to-background p-6 text-center sm:p-8"
       >
-        <div className="mb-3 flex justify-center">
-          <StatusBadge status={election.status} />
+        <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-primary/10 blur-3xl" />
+        <div className="absolute bottom-0 left-1/4 h-24 w-24 translate-y-6 rounded-full bg-chart-2/10 blur-3xl" />
+        <div className="relative">
+          <div className="mb-3 flex justify-center">
+            <StatusBadge status={election.status} />
+          </div>
+          <h1 className="text-balance text-2xl font-bold leading-tight tracking-tight sm:text-3xl">
+            {election.name}
+          </h1>
+          {election.description && (
+            <p className="mx-auto mt-2 max-w-2xl text-balance text-sm text-muted-foreground sm:text-base">
+              {election.description}
+            </p>
+          )}
         </div>
-        <h1 className="text-balance text-2xl font-bold leading-tight tracking-tight sm:text-3xl">
-          {election.name}
-        </h1>
-        {election.description && (
-          <p className="mx-auto mt-2 max-w-2xl text-balance text-sm text-muted-foreground sm:text-base">
-            {election.description}
-          </p>
-        )}
       </motion.div>
 
       {/* Topline stats */}

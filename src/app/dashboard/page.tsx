@@ -23,6 +23,7 @@ import {
   EmptyState,
 } from "@/components/dashboard/dashboard-skeleton";
 import { ElectionCard } from "@/components/dashboard/election-card";
+import { LiveActivityFeed } from "@/components/dashboard/live-activity-feed";
 import { apiFetch } from "@/lib/api-fetch";
 import { cn, formatNumber, formatRelative, formatPercent } from "@/lib/utils";
 import {
@@ -350,12 +351,17 @@ export default function OverviewPage() {
             </CardContent>
           </Card>
 
-          {/* Recent activity */}
+          {/* Live activity feed (real-time via socket.io) */}
+          {me?.organization?.id && (
+            <LiveActivityFeed organizationId={me.organization.id} />
+          )}
+
+          {/* Recent audit (static fallback) */}
           <Card>
             <CardHeader className="border-b pb-4">
               <CardTitle className="flex items-center gap-2 text-base">
                 <ScrollText className="h-4 w-4 text-primary" />
-                Recent activity
+                Recent audit
               </CardTitle>
               <CardDescription>Audit trail from the last actions.</CardDescription>
             </CardHeader>
@@ -365,9 +371,9 @@ export default function OverviewPage() {
                   No recent activity recorded.
                 </p>
               ) : (
-                <ScrollArea className="max-h-96 scroll-area-custom">
+                <ScrollArea className="max-h-72 scroll-area-custom">
                   <ol className="space-y-3 pr-2">
-                    {recentAudit.slice(0, 8).map((log) => (
+                    {recentAudit.slice(0, 6).map((log) => (
                       <li key={log.id} className="flex gap-3">
                         <div className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
                         <div className="min-w-0 flex-1">
