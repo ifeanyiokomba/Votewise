@@ -115,6 +115,20 @@ export default function AuthLayout({
           <p className="mt-8 text-xs text-white/55">
             Trusted by institutions across Nigeria &amp; beyond.
           </p>
+
+          {/* Institution types */}
+          <div className="mt-6 flex flex-wrap gap-1.5">
+            {["Universities", "Student Unions", "Associations", "Cooperatives", "NGOs", "Clubs"].map(
+              (type) => (
+                <span
+                  key={type}
+                  className="rounded-full bg-white/10 px-2.5 py-0.5 text-[10px] font-medium text-white/80 ring-1 ring-white/10"
+                >
+                  {type}
+                </span>
+              )
+            )}
+          </div>
         </div>
       </aside>
 

@@ -11,9 +11,10 @@ import {
 } from "@/components/dashboard/dashboard-skeleton";
 import { ElectionCard } from "@/components/dashboard/election-card";
 import { CreateElectionDialog } from "@/components/dashboard/create-election-dialog";
+import { TemplateDialog } from "@/components/dashboard/template-dialog";
 import { apiFetch } from "@/lib/api-fetch";
 import { cn } from "@/lib/utils";
-import { Plus, Vote, Loader2 } from "lucide-react";
+import { Plus, Vote, Loader2, LayoutTemplate } from "lucide-react";
 import type { ElectionDTO } from "@/components/dashboard/types";
 
 type Filter = "all" | "active" | "draft" | "concluded";
@@ -42,6 +43,7 @@ export default function ElectionsListPage() {
   const [elections, setElections] = useState<ElectionDTO[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
   const [createOpen, setCreateOpen] = useState(false);
+  const [templateOpen, setTemplateOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -88,10 +90,16 @@ export default function ElectionsListPage() {
             Manage every election across your organization.
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="h-4 w-4" />
-          New election
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setTemplateOpen(true)}>
+            <LayoutTemplate className="h-4 w-4" />
+            Templates
+          </Button>
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4" />
+            New election
+          </Button>
+        </div>
       </motion.div>
 
       {/* Filter tabs */}
@@ -165,6 +173,8 @@ export default function ElectionsListPage() {
           load();
         }}
       />
+
+      <TemplateDialog open={templateOpen} onOpenChange={setTemplateOpen} />
     </div>
   );
 }

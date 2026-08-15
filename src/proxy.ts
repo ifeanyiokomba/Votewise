@@ -17,6 +17,9 @@ export function proxy(request: NextRequest) {
   if (pathname.startsWith("/results/")) {
     return NextResponse.next();
   }
+  if (pathname.startsWith("/observe/")) {
+    return NextResponse.next();
+  }
 
   const token = request.cookies.get(SESSION_COOKIE)?.value;
 

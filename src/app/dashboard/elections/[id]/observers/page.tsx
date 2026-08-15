@@ -46,8 +46,10 @@ import {
   Loader2,
   Users,
   CheckCircle2,
+  ExternalLink,
 } from "lucide-react";
 import { initials, formatRelative } from "@/lib/utils";
+import Link from "next/link";
 
 interface ObserverUser {
   id: string;
@@ -228,6 +230,12 @@ export default function ObserversPage({
                   <ShieldCheck className="h-3 w-3" />
                   Read-only access
                 </Badge>
+                <Button asChild variant="outline" size="sm" className="gap-1.5">
+                  <Link href={`/observe/${electionId}`} target="_blank">
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    Open observer view
+                  </Link>
+                </Button>
               </div>
             </div>
 

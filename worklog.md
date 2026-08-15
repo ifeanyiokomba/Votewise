@@ -507,3 +507,84 @@ Task: Assess project status, QA test via agent-browser, add new features, improv
 - **Notification preferences** — admins can't configure which notifications they receive. Recommend a preferences panel in Settings.
 - **Audit log filtering** — the audit page has basic filters but could benefit from date-range and actor-specific filtering.
 - **Election templates** — could add pre-built election templates (e.g. "Student Union", "Board Election") to speed up setup.
+
+---
+Task ID: CRON-3 (webDevReview round 3)
+Agent: Lead (orchestrator) — cron-triggered continuous review
+Task: Assess project status, QA test via agent-browser, add new features, improve styling.
+
+## Current Project Status Assessment
+- Votewise is fully functional end-to-end. Both services (Next.js :3000 + socket.io monitor :3003) running cleanly.
+- `bun run lint` passes with 0 errors, 0 warnings.
+- No runtime errors in dev.log.
+- All major flows verified: landing → auth → dashboard → election command center → voter flow → public results → observer view.
+
+## Bugs Found & Fixed
+- No bugs found during this round's QA. All flows from round 2 remain working correctly.
+- Fixed a UI rendering issue in the template dialog (templates not loading on open) by switching from `onOpenChange` callback to a `useEffect` that triggers `loadTemplates` when `open` becomes true. Also replaced `ScrollArea` with a plain `overflow-y-auto` div for reliable rendering.
+
+## New Features Added
+
+### 1. Observer-Facing Dashboard (`/observe/[id]`)
+- **New API**: `GET /api/public/observe/[id]` — returns read-only election health metrics (registered voters, verified, votes cast, active sessions, turnout, verification rate), a cumulative vote timeline, and (if PUBLISHED) final results. Never exposes voter identities or individual ballot choices.
+- **New page**: `src/app/observe/[id]/page.tsx` — a premium public observer dashboard with:
+  - Gradient hero panel with election name, organization, status badge, and live-monitoring pulse.
+  - Observer notice card explaining the read-only, privacy-preserving nature.
+  - 6 stat tiles (registered, verified, votes cast, active now, turnout, verification rate) with active-session highlighting.
+  - Turnout overview card with progress bar.
+  - Vote timeline chart (bar + cumulative overlay, per-hour buckets).
+  - Published results section (ranked candidates with progress bars, winner highlight, tie detection) — only shown when PUBLISHED.
+  - Auto-refresh every 10 seconds for near-live updates.
+  - Share button to copy the observer link.
+  - Trust footer with tamper-evident/read-only/auto-refresh badges.
+- Added `/observe` to public routes in `tenant.ts` and `proxy.ts`.
+- Added "Open observer view" link button on the observers management page (opens in new tab).
+
+### 2. Election Templates (pre-built setups)
+- **New API**: `GET /api/election-templates` (list 6 templates) + `POST /api/election-templates` (create election from template).
+- **6 templates**: Student Union Government (5 positions, 10 candidates), Faculty Representatives, Class Representatives, Board of Directors (3 positions, 5 candidates), Association Executives (4 positions, 5 candidates), Confidence Vote.
+- **New component**: `src/components/dashboard/template-dialog.tsx` — a dialog with template selection cards (icon, name, type badge, description, position/candidate counts), optional election name override, and create button. Loads templates via `useEffect` when opened.
+- Added "Templates" button to the elections list page header alongside "New election".
+- Verified: selected "Student Union Government" template → created election with 5 positions and 10 candidates, redirected to the new election's command center.
+
+### 3. Notification Preferences (Settings)
+- **New section** in the Settings page (`/dashboard/settings`): "Notification preferences" card with 5 event types (Election goes live, Vote cast, Election closed, Results published, Security alerts) × 3 channels (Email, SMS, WhatsApp) = 15 toggle switches.
+- Each row has an icon, label, description, and per-channel `Switch` toggles styled as pill badges.
+- "Save preferences" button with demo toast (preferences are client-side only; an API would persist them in production).
+- Security alerts default to Email + SMS; other events default to Email only.
+
+## Styling Improvements
+
+### Auth layout (`(auth)/layout.tsx`)
+- Added an "institution types" pill strip (Universities, Student Unions, Associations, Cooperatives, NGOs, Clubs) at the bottom of the left branded panel for additional visual richness and trust signaling.
+
+### Observer dashboard
+- Full premium design with gradient hero, blurred decorative orbs, stat tiles, timeline chart, and results cards — consistent with the institutional emerald theme.
+
+## Verification Results
+- `bun run lint`: 0 errors, 0 warnings.
+- agent-browser end-to-end:
+  - ✅ Observer view at `/observe/[id]` loads with 12 registered, 2 verified, 3 votes, 25% turnout, vote timeline.
+  - ✅ Observer view auto-refreshes every 10 seconds (no errors).
+  - ✅ "Open observer view" link visible on observers management page.
+  - ✅ Templates dialog shows 6 templates with position/candidate counts.
+  - ✅ Selected "Student Union Government" template → created election with 5 positions + 10 candidates.
+  - ✅ Notification preferences section visible in Settings with all 5 event types and channel toggles.
+  - ✅ Institution types pill strip on auth layout.
+  - ✅ No console errors on any tested page.
+
+## Files Modified/Created
+- **Created**: `src/app/api/public/observe/[id]/route.ts`, `src/app/observe/[id]/page.tsx`, `src/app/api/election-templates/route.ts`, `src/components/dashboard/template-dialog.tsx`.
+- **Modified**: `src/lib/tenant.ts` (+`/observe`, `/verify-ballot` to public routes), `src/proxy.ts` (+`/observe/` passthrough), `src/app/dashboard/elections/page.tsx` (Templates button + dialog), `src/app/dashboard/elections/[id]/observers/page.tsx` (Open observer view link), `src/app/dashboard/settings/page.tsx` (notification preferences section + ChannelToggle component), `src/app/(auth)/layout.tsx` (institution types pill strip).
+
+## Unresolved Issues / Risks / Next-Phase Recommendations
+- **No real SMS/email/WhatsApp provider** — OTP delivered via in-app Notification log + devCode hint. Wire Resend/Termii for production.
+- **Payments simulated** — no Paystack webhook. Add real webhook verification.
+- **No automated tests** — recommend adding vitest for vote.service, result.service, election transitions, otp.service, observer API, and template creation.
+- **No MFA for admins** — recommend adding TOTP-based MFA for ORG_OWNER/ORG_ADMIN/PLATFORM_ADMIN roles.
+- **Subdomain multi-tenancy** — `tenant.ts` resolution exists but single-port sandbox serves one org. Enable in production.
+- **Notification preferences not persisted** — currently client-side only with a demo toast. Add a `PATCH /api/organization` endpoint to persist preferences in the org's `branding` JSON field.
+- **Observer authentication** — the observer view is currently public (anyone with the link can view). For production, add a token-based observer authentication (e.g. signed observer links with expiry).
+- **Audit log advanced filtering** — the audit page has basic filters; add date-range and actor-specific filtering.
+- **Election scheduling automation** — elections must be transitioned to LIVE manually. Add automatic status transitions based on start/end times via a cron job.
+- **Results export to PDF** — currently CSV only. Add PDF report generation for official result publication.
