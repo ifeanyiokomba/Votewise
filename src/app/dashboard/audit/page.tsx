@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState, ErrorState } from "@/components/dashboard/dashboard-skeleton";
 import { apiFetch } from "@/lib/api-fetch";
@@ -33,6 +34,7 @@ import {
   Download,
   Info,
   Loader2,
+  Filter,
 } from "lucide-react";
 import type {
   AdminStatsResponse,
@@ -92,7 +94,10 @@ export default function AuditPage() {
   const [elections, setElections] = useState<ElectionDTO[]>([]);
   const [selectedElection, setSelectedElection] = useState<string>("all");
   const [actionFilter, setActionFilter] = useState<string>("all");
+  const [resultFilter, setResultFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
   const [loadingElection, setLoadingElection] = useState(false);
 
   const load = useCallback(async () => {
@@ -164,8 +169,14 @@ export default function AuditPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const fromTime = dateFrom ? new Date(dateFrom + "T00:00:00").getTime() : null;
+    const toTime = dateTo ? new Date(dateTo + "T23:59:59").getTime() : null;
     return baseLogs.filter((l) => {
       if (actionFilter !== "all" && l.action !== actionFilter) return false;
+      if (resultFilter !== "all" && (l.result ?? "none") !== resultFilter) return false;
+      const logTime = new Date(l.timestamp).getTime();
+      if (fromTime !== null && logTime < fromTime) return false;
+      if (toTime !== null && logTime > toTime) return false;
       if (!q) return true;
       const haystack = [
         l.action,
@@ -179,7 +190,22 @@ export default function AuditPage() {
         .toLowerCase();
       return haystack.includes(q);
     });
-  }, [baseLogs, actionFilter, search]);
+  }, [baseLogs, actionFilter, resultFilter, search, dateFrom, dateTo]);
+
+  const activeFilterCount =
+    (actionFilter !== "all" ? 1 : 0) +
+    (resultFilter !== "all" ? 1 : 0) +
+    (dateFrom ? 1 : 0) +
+    (dateTo ? 1 : 0) +
+    (search ? 1 : 0);
+
+  function clearFilters() {
+    setActionFilter("all");
+    setResultFilter("all");
+    setSearch("");
+    setDateFrom("");
+    setDateTo("");
+  }
 
   function exportCsv() {
     if (filtered.length === 0) {
@@ -247,46 +273,93 @@ export default function AuditPage() {
 
       {/* Filters */}
       <Card>
-        <CardContent className="grid gap-3 p-4 md:grid-cols-[1fr_220px_220px]">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search actor, resource, result…"
-              className="pl-9"
-            />
+        <CardContent className="space-y-3 p-4">
+          <div className="grid gap-3 md:grid-cols-[1fr_200px_200px_160px]">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search actor, resource, result…"
+                className="pl-9"
+              />
+            </div>
+            <Select value={selectedElection} onValueChange={setSelectedElection}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="All elections" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All elections (org)</SelectItem>
+                {elections.map((e) => (
+                  <SelectItem key={e.id} value={e.id}>
+                    {e.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={actionFilter}
+              onValueChange={setActionFilter}
+              disabled={allActions.length === 0}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="All actions" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All actions</SelectItem>
+                {allActions.map((a) => (
+                  <SelectItem key={a} value={a}>
+                    {humanizeAction(a)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={resultFilter} onValueChange={setResultFilter}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="All results" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All results</SelectItem>
+                <SelectItem value="SUCCESS">Success</SelectItem>
+                <SelectItem value="FAILED">Failed</SelectItem>
+                <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                <SelectItem value="none">No result</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <Select value={selectedElection} onValueChange={setSelectedElection}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="All elections" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All elections (org)</SelectItem>
-              {elections.map((e) => (
-                <SelectItem key={e.id} value={e.id}>
-                  {e.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            value={actionFilter}
-            onValueChange={setActionFilter}
-            disabled={allActions.length === 0}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="All actions" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All actions</SelectItem>
-              {allActions.map((a) => (
-                <SelectItem key={a} value={a}>
-                  {humanizeAction(a)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-muted-foreground">From:</span>
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="h-8 w-[140px] text-xs"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-muted-foreground">To:</span>
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="h-8 w-[140px] text-xs"
+              />
+            </div>
+            {activeFilterCount > 0 && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 gap-1.5 text-xs">
+                <span className="text-muted-foreground">Clear filters ({activeFilterCount})</span>
+              </Button>
+            )}
+            <div className="ml-auto flex items-center gap-2">
+              {activeFilterCount > 0 && (
+                <Badge variant="outline" className="gap-1.5">
+                  <Filter className="h-3 w-3" />
+                  {filtered.length} match{filtered.length === 1 ? "" : "es"}
+                </Badge>
+              )}
+            </div>
+          </div>
         </CardContent>
       </Card>
 

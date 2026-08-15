@@ -588,3 +588,74 @@ Task: Assess project status, QA test via agent-browser, add new features, improv
 - **Audit log advanced filtering** — the audit page has basic filters; add date-range and actor-specific filtering.
 - **Election scheduling automation** — elections must be transitioned to LIVE manually. Add automatic status transitions based on start/end times via a cron job.
 - **Results export to PDF** — currently CSV only. Add PDF report generation for official result publication.
+
+---
+Task ID: CRON-4 (webDevReview round 4)
+Agent: Lead (orchestrator) — cron-triggered continuous review
+Task: Assess project status, QA test via agent-browser, add new features, improve styling.
+
+## Current Project Status Assessment
+- Votewise is fully functional end-to-end. Three services now running: Next.js (:3000), socket.io monitor (:3003), and the new election scheduler (background).
+- `bun run lint` passes with 0 errors, 0 warnings.
+- No runtime errors in dev.log.
+- All major flows verified: landing → auth → dashboard → election command center → voter flow → public results → observer view → settings persistence.
+
+## Bugs Found & Fixed
+- No bugs found during this round's QA. All flows from round 3 remain working correctly.
+
+## New Features Added
+
+### 1. Organization Settings Persistence API
+- **New API**: `GET /api/admin/organization` (fetch full org profile including description, contactInfo, branding) + `PATCH /api/admin/organization` (persist changes with zod validation + audit logging).
+- **Settings page upgraded**: the `onSave` function now calls the real PATCH API instead of a demo toast. The `load` function fetches the full org profile via `GET /api/admin/organization` so all form fields (name, description, logo, contactInfo, branding) are populated from the database.
+- Removed the "Demo" badge from the branding field (now shows "JSON" since it's a real persisted field).
+- Verified: changed org name to "Nnamdi Azikiwe University (Updated)" → saved → reloaded page → name persisted → reverted via script.
+
+### 2. Advanced Audit Log Filtering
+- **New filters** added to the audit page (`/dashboard/audit`):
+  - **Result filter** (Select): All results / Success / Failed / Cancelled / No result.
+  - **Date range** (From / To date inputs): filters logs by timestamp range.
+  - **Active filter counter**: shows "Clear filters (N)" button when any filter is active, plus a "N matches" badge.
+- The filter UI was restructured from a 3-column grid to a 4-column grid (search + election + action + result) with a second row for date range and clear button.
+- All filters compose with the existing search and action-type filters.
+
+### 3. Election Scheduler (auto LIVE/CLOSED transitions)
+- **New mini-service**: `mini-services/scheduler-service/index.ts` — an independent bun script that polls the SQLite database every 60 seconds and performs automatic status transitions:
+  - `SCHEDULED → LIVE` when `startTime` has passed and `endTime` hasn't.
+  - `LIVE → CLOSED` when `endTime` has passed.
+  - `SCHEDULED → CLOSED` for missed-window elections (endTime passed without going live).
+- Each transition logs an audit entry with `metadata: { automated: true, from, to }` and `userAgent: 'votewise-scheduler'` for traceability.
+- Verified: on first run, the scheduler automatically closed the LIVE election whose endTime had passed (the Student Union Government Elections 2025 whose end time was set to 24h after start but the seed ran days ago).
+- Started with `bun mini-services/scheduler-service/index.ts` (not `--hot` to avoid premature exit).
+
+## Styling Improvements
+
+### Voter receipt page (`/vote/[id]/receipt`)
+- **Success hero**: upgraded from a flat centered layout to a gradient panel (`from-emerald-50 via-accent/40 to-background` with dark mode variants) with blurred decorative orbs (emerald + chart-2 colors).
+- **Success icon**: now uses `shadow-glow` for a premium glow effect, with emerald-tinted colors for the success state and amber for the already-voted state.
+
+## Verification Results
+- `bun run lint`: 0 errors, 0 warnings.
+- agent-browser end-to-end:
+  - ✅ Settings page: changed org name → saved → reloaded → persisted.
+  - ✅ Settings form fields (description, contactInfo, branding) now populate from the API.
+  - ✅ Audit page: date range filters (From/To), result filter dropdown, active filter counter, clear button all visible.
+  - ✅ Voter receipt: gradient success hero with glow effect.
+  - ✅ Scheduler service: running in background, automatically closed an overdue LIVE election.
+  - ✅ No console errors on any tested page.
+
+## Files Modified/Created
+- **Created**: `src/app/api/admin/organization/route.ts` (GET + PATCH), `mini-services/scheduler-service/index.ts` (+ `package.json`).
+- **Modified**: `src/app/dashboard/settings/page.tsx` (real API persistence + OrgFullDTO type + removed Demo badge), `src/app/dashboard/audit/page.tsx` (date-range + result filters + clear button + active filter counter), `src/app/(voter)/vote/[id]/receipt/page.tsx` (gradient success hero).
+
+## Unresolved Issues / Risks / Next-Phase Recommendations
+- **No real SMS/email/WhatsApp provider** — OTP delivered via in-app Notification log + devCode hint. Wire Resend/Termii for production.
+- **Payments simulated** — no Paystack webhook. Add real webhook verification.
+- **No automated tests** — recommend adding vitest for vote.service, result.service, election transitions, otp.service, organization API, and scheduler logic.
+- **No MFA for admins** — recommend adding TOTP-based MFA for ORG_OWNER/ORG_ADMIN/PLATFORM_ADMIN roles.
+- **Subdomain multi-tenancy** — `tenant.ts` resolution exists but single-port sandbox serves one org. Enable in production.
+- **Observer authentication** — the observer view is currently public (anyone with the link can view). For production, add token-based observer authentication with signed links and expiry.
+- **Notification preferences not persisted** — the notification preferences section in Settings is still client-side only. Add persistence via the organization `branding` JSON field or a new `NotificationPreference` model.
+- **PDF results export** — currently CSV only. Add PDF report generation for official result publication.
+- **Election scheduler restart-on-reboot** — the scheduler runs as a background process; add it to a process manager or systemd for production reliability. Consider integrating it into the main Next.js app as a serverless cron or API route with a secret token.
+- **Real-time election auto-transition notifications** — when the scheduler transitions an election to LIVE or CLOSED, it should trigger notifications to org admins. Currently it only logs to the audit table.

@@ -82,32 +82,36 @@ function ReceiptInner() {
         initial={reduce ? false : { opacity: 0, scale: 0.94, y: 12 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className="flex flex-col items-center text-center"
+        className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-emerald-50 via-accent/40 to-background p-8 text-center dark:from-emerald-950/30 dark:via-accent/20"
       >
-        <div
-          className={cn(
-            "grid size-16 place-items-center rounded-full shadow-sm",
-            alreadyVoted
-              ? "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300"
-              : "bg-success/15 text-success"
-          )}
-        >
-          {alreadyVoted ? (
-            <Info className="size-8" />
-          ) : (
-            <CheckCircle2 className="size-8 text-success" />
-          )}
+        <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-emerald-300/20 blur-3xl dark:bg-emerald-500/10" />
+        <div className="absolute bottom-0 left-1/4 h-24 w-24 translate-y-6 rounded-full bg-chart-2/10 blur-3xl" />
+        <div className="relative flex flex-col items-center">
+          <div
+            className={cn(
+              "grid size-16 place-items-center rounded-full shadow-glow",
+              alreadyVoted
+                ? "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300"
+                : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+            )}
+          >
+            {alreadyVoted ? (
+              <Info className="size-8" />
+            ) : (
+              <CheckCircle2 className="size-8" />
+            )}
+          </div>
+          <h1 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">
+            {alreadyVoted
+              ? "You have already voted"
+              : "Your vote has been recorded"}
+          </h1>
+          <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground sm:text-base">
+            {alreadyVoted
+              ? "A ballot was already cast from your account in this election. You cannot vote again."
+              : "Thank you for participating. Your selections have been securely recorded."}
+          </p>
         </div>
-        <h1 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">
-          {alreadyVoted
-            ? "You have already voted"
-            : "Your vote has been recorded"}
-        </h1>
-        <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground sm:text-base">
-          {alreadyVoted
-            ? "A ballot was already cast from your account in this election. You cannot vote again."
-            : "Thank you for participating. Your selections have been securely recorded."}
-        </p>
       </motion.div>
 
       {reference && !alreadyVoted && (

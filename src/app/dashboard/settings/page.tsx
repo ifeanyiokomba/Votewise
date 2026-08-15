@@ -69,6 +69,19 @@ interface OrgFormState {
   branding: string;
 }
 
+interface OrgFullDTO {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  logo: string | null;
+  domain: string | null;
+  contactInfo: string | null;
+  branding: string | null;
+  subscriptionTier: string;
+  updatedAt: string;
+}
+
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -86,21 +99,24 @@ export default function SettingsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const res = await apiFetch<MeResponse>("/api/auth/me");
+    const [meRes, orgRes] = await Promise.all([
+      apiFetch<MeResponse>("/api/auth/me"),
+      apiFetch<{ organization: OrgFullDTO }>("/api/admin/organization"),
+    ]);
     setLoading(false);
-    if (!res.success || !res.data) {
-      setError(res.error?.message ?? "Could not load organization");
+    if (!meRes.success || !meRes.data) {
+      setError(meRes.error?.message ?? "Could not load session");
       return;
     }
-    const org = res.data.organization;
-    setOrganization(org);
-    if (org) {
+    setOrganization(meRes.data.organization);
+    if (orgRes.success && orgRes.data?.organization) {
+      const org = orgRes.data.organization;
       setForm({
         name: org.name ?? "",
-        description: "",
+        description: org.description ?? "",
         logo: org.logo ?? "",
-        contactInfo: "",
-        branding: "",
+        contactInfo: org.contactInfo ?? "",
+        branding: org.branding ?? "",
       });
     }
   }, []);
@@ -120,23 +136,43 @@ export default function SettingsPage() {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
-  function onSave(e: React.FormEvent) {
+  async function onSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    // Demo-only optimistic update — no PATCH endpoint exists yet.
-    setTimeout(() => {
-      setSaving(false);
-      if (organization) {
-        setOrganization({
-          ...organization,
-          name: form.name.trim() || organization.name,
+    const res = await apiFetch<{ organization: OrgFullDTO }>(
+      "/api/admin/organization",
+      {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: form.name.trim(),
+          description: form.description.trim() || null,
           logo: form.logo.trim() || null,
-        });
+          contactInfo: form.contactInfo.trim() || null,
+          branding: form.branding.trim() || null,
+        }),
       }
-      toast.success("Settings saved (demo)", {
-        description: "Connect a PATCH /api/organization route to persist changes.",
-      });
-    }, 600);
+    );
+    setSaving(false);
+    if (!res.success || !res.data?.organization) {
+      toast.error("Could not save settings", { description: res.error?.message });
+      return;
+    }
+    const org = res.data.organization;
+    setForm({
+      name: org.name ?? "",
+      description: org.description ?? "",
+      logo: org.logo ?? "",
+      contactInfo: org.contactInfo ?? "",
+      branding: org.branding ?? "",
+    });
+    setOrganization({
+      ...(organization as OrganizationDTO),
+      name: org.name,
+      logo: org.logo,
+    });
+    toast.success("Settings saved", {
+      description: "Organization profile updated successfully.",
+    });
   }
 
   if (loading) {
@@ -309,8 +345,8 @@ export default function SettingsPage() {
               <div className="space-y-1.5">
                 <Label htmlFor="branding" className="flex items-center gap-2">
                   Branding
-                  <Badge variant="outline" className="text-[10px] font-normal text-amber-700 dark:text-amber-300">
-                    Demo
+                  <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground">
+                    JSON
                   </Badge>
                 </Label>
                 <Textarea
