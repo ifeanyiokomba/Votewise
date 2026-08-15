@@ -1,0 +1,637 @@
+// Votewise — Multi-tenant election management platform (SQLite)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────
+
+enum Role {
+  PLATFORM_ADMIN
+  ORG_OWNER
+  ORG_ADMIN
+  ELECTION_MANAGER
+  ELECTION_OFFICER
+  OBSERVER
+  AUDITOR
+  VOTER
+}
+
+enum ElectionStatus {
+  DRAFT
+  CONFIGURATION
+  VOTER_IMPORT
+  CANDIDATE_SETUP
+  VERIFICATION
+  READY
+  SCHEDULED
+  LIVE
+  PAUSED
+  CLOSED
+  RESULTS_REVIEW
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ElectionType {
+  GENERAL
+  FACULTY
+  DEPARTMENT
+  EXECUTIVE
+  CONFIDENCE
+  BALLOT_MEASURE
+}
+
+enum VerificationChannel {
+  EMAIL
+  SMS
+  WHATSAPP
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  FAILED
+  EXPIRED
+}
+
+enum VoteStatus {
+  CAST
+  INVALID
+  DISPUTED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum SubscriptionTier {
+  FREE
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum CommercialActivationStatus {
+  UNPRICED
+  PAYMENT_REQUIRED
+  PAYMENT_PENDING
+  PAYMENT_VERIFIED
+  NEGOTIATION_REQUESTED
+  NEGOTIATION_IN_PROGRESS
+  NEGOTIATED_SETTLEMENT_PENDING
+  MANUALLY_APPROVED
+  DECLINED
+}
+
+enum NegotiationStatus {
+  REQUESTED
+  UNDER_REVIEW
+  IN_PROGRESS
+  SETTLEMENT_PENDING
+  SETTLED
+  APPROVED
+  DECLINED
+  CANCELLED
+}
+
+enum NotificationType {
+  EMAIL
+  SMS
+  WHATSAPP
+  IN_APP
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+  RETRIED
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum SecurityEventType {
+  FAILED_LOGIN
+  BRUTE_FORCE_DETECTED
+  CROSS_TENANT_ACCESS
+  DUPLICATE_VOTE_ATTEMPT
+  UNUSUAL_IP_ACTIVITY
+  API_ABUSE
+  ADMIN_PRIVILEGE_ESCALATION
+  UNAUTHORIZED_ACCESS
+  SUSPICIOUS_OTP_ACTIVITY
+  SESSION_HIJACK_ATTEMPT
+}
+
+enum AuditAction {
+  LOGIN
+  LOGOUT
+  AUTH_FAILURE
+  USER_REGISTERED
+  PASSWORD_RESET
+  ELECTION_CREATE
+  ELECTION_UPDATE
+  ELECTION_ACTIVATE
+  ELECTION_PAUSE
+  ELECTION_CLOSE
+  ELECTION_PUBLISHED
+  ELECTION_PUBLISH
+  ELECTION_ARCHIVE
+  CANDIDATE_CREATE
+  CANDIDATE_UPDATE
+  CANDIDATE_DELETE
+  VOTER_IMPORT
+  VOTER_UPDATE
+  VOTER_DELETE
+  VOTE_CAST
+  RESULT_PUBLISHED
+  ROLE_CHANGE
+  SETTINGS_CHANGE
+  PAYMENT_RECEIVED
+  SUBSCRIPTION_CHANGE
+  SUPPORT_TICKET_CREATE
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+// ─── Models ───────────────────────────────────────────────────────────
+
+model Organization {
+  id               String           @id @default(cuid())
+  name             String
+  slug             String           @unique
+  logo             String?
+  domain           String?          @unique
+  description      String?
+  contactInfo     String?
+  branding         String?
+  subscriptionTier SubscriptionTier @default(FREE)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  users               User[]
+  elections           Election[]
+  voters              Voter[]
+  auditLogs           AuditLog[]
+  securityEvents      SecurityEvent[]
+  subscriptions       Subscription[]
+  supportTickets      SupportTicket[]
+  activations         CommercialActivation[]
+  negotiationRequests NegotiationRequest[]
+
+  @@index([slug])
+}
+
+model User {
+  id                   String    @id @default(cuid())
+  email                String
+  passwordHash         String
+  name                 String
+  role                 Role      @default(VOTER)
+  emailVerified        DateTime?
+  mfaEnabled           Boolean   @default(false)
+  mfaSecret            String?
+  avatar               String?
+  isActive             Boolean   @default(true)
+  lastLoginAt          DateTime?
+  passwordResetToken   String?
+  passwordResetExpires DateTime?
+  organizationId       String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  organization          Organization?      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  auditLogs             AuditLog[]
+  createdTickets        SupportTicket[]    @relation("TicketCreator")
+  assignedTickets       SupportTicket[]   @relation("TicketAssignee")
+  sentMessages          SupportMessage[]
+  observers            Observer[]
+  assignedNegotiations NegotiationRequest[]
+
+  @@unique([email, organizationId])
+  @@index([email])
+  @@index([organizationId])
+}
+
+model Election {
+  id             String         @id @default(cuid())
+  name           String
+  description    String?
+  status         ElectionStatus @default(DRAFT)
+  type           ElectionType   @default(GENERAL)
+  startTime      DateTime?
+  endTime        DateTime?
+  timezone       String         @default("Africa/Lagos")
+  config         String?
+  organizationId String
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization         Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  positions            Position[]
+  candidates           Candidate[]
+  voters               Voter[]
+  votingSessions       VotingSession[]
+  votes                Vote[]
+  results              ElectionResult[]
+  observers            Observer[]
+  notifications        Notification[]
+  verificationAttempts VerificationAttempt[]
+  activation           CommercialActivation?
+  negotiationRequests  NegotiationRequest[]
+
+  @@index([organizationId])
+  @@index([status])
+}
+
+model Position {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  maxChoices  Int      @default(1)
+  order       Int      @default(0)
+  electionId  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  election   Election          @relation(fields: [electionId], references: [id], onDelete: Cascade)
+  candidates Candidate[]
+  votes      Vote[]
+  results    ElectionResult[]
+
+  @@index([electionId])
+}
+
+model Candidate {
+  id         String   @id @default(cuid())
+  name       String
+  photo      String?
+  bio        String?
+  manifesto  String?
+  positionId String
+  electionId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  position Position          @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  election Election          @relation(fields: [electionId], references: [id], onDelete: Cascade)
+  votes    Vote[]
+  results  ElectionResult[]
+
+  @@index([positionId])
+  @@index([electionId])
+}
+
+model Voter {
+  id               String   @id @default(cuid())
+  name             String
+  matricNumber     String?
+  department       String?
+  faculty          String?
+  level            String?
+  phone            String?
+  email            String?
+  uniqueIdentifier String
+  isEligible       Boolean  @default(true)
+  organizationId   String
+  electionId       String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  organization         Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  election             Election              @relation(fields: [electionId], references: [id], onDelete: Cascade)
+  verificationAttempts VerificationAttempt[]
+  votingSessions       VotingSession[]
+
+  @@unique([uniqueIdentifier, electionId])
+  @@index([organizationId])
+  @@index([electionId])
+  @@index([uniqueIdentifier])
+}
+
+model VerificationAttempt {
+  id          String             @id @default(cuid())
+  channel     VerificationChannel
+  otpHash     String
+  expiresAt   DateTime
+  attempts    Int                @default(0)
+  maxAttempts Int                @default(5)
+  status      VerificationStatus @default(PENDING)
+  ipAddress   String?
+  voterId     String
+  electionId  String
+  createdAt   DateTime           @default(now())
+
+  voter    Voter    @relation(fields: [voterId], references: [id], onDelete: Cascade)
+  election Election @relation(fields: [electionId], references: [id], onDelete: Cascade)
+
+  @@index([voterId])
+  @@index([electionId])
+}
+
+model VotingSession {
+  id             String    @id @default(cuid())
+  voterId        String
+  electionId     String
+  anonymousToken String?   @unique
+  startedAt      DateTime  @default(now())
+  completedAt    DateTime?
+  ipAddress      String?
+  userAgent      String?
+  isActive       Boolean   @default(true)
+
+  voter    Voter    @relation(fields: [voterId], references: [id], onDelete: Cascade)
+  election Election @relation(fields: [electionId], references: [id], onDelete: Cascade)
+  votes    Vote[]
+
+  @@index([voterId, electionId])
+  @@index([electionId])
+}
+
+model Vote {
+  id             String     @id @default(cuid())
+  anonymousToken String
+  electionId     String
+  positionId     String
+  candidateId    String
+  sessionId      String?
+  ballotHash     String
+  status         VoteStatus @default(CAST)
+  castAt         DateTime   @default(now())
+
+  election  Election        @relation(fields: [electionId], references: [id], onDelete: Cascade)
+  position  Position        @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  candidate Candidate       @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  session   VotingSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@unique([anonymousToken, electionId, positionId])
+  @@index([electionId])
+  @@index([positionId])
+  @@index([candidateId])
+  @@index([anonymousToken])
+}
+
+model ElectionResult {
+  id          String   @id @default(cuid())
+  electionId  String
+  positionId  String
+  candidateId String
+  voteCount   Int      @default(0)
+  percentage  Float    @default(0)
+  rank        Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  election  Election  @relation(fields: [electionId], references: [id], onDelete: Cascade)
+  position  Position  @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@unique([electionId, positionId, candidateId])
+  @@index([electionId])
+}
+
+model Observer {
+  id          String   @id @default(cuid())
+  userId      String
+  electionId  String
+  permissions String?
+  createdAt   DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  election Election @relation(fields: [electionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, electionId])
+}
+
+model CommercialActivation {
+  id                String                     @id @default(cuid())
+  electionId        String                     @unique
+  organizationId    String
+  status            CommercialActivationStatus @default(UNPRICED)
+  voterCount        Int
+  applicableRate    Int
+  calculatedAmount  Int
+  currency          String                     @default("NGN")
+  pricingRule       String
+  pricingSnapshot   String?
+  activatedAt       DateTime?
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+
+  election     Election           @relation(fields: [electionId], references: [id], onDelete: Cascade)
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  negotiation  NegotiationRequest?
+  payments     ElectionPayment[]
+
+  @@index([electionId])
+  @@index([organizationId])
+  @@index([status])
+}
+
+model ElectionPayment {
+  id           String        @id @default(cuid())
+  activationId String
+  amount       Int
+  currency     String        @default("NGN")
+  status       PaymentStatus @default(PENDING)
+  reference    String        @unique
+  provider     String        @default("paystack")
+  metadata     String?
+  paidAt       DateTime?
+  createdAt    DateTime      @default(now())
+
+  activation CommercialActivation @relation(fields: [activationId], references: [id], onDelete: Cascade)
+
+  @@index([reference])
+  @@index([activationId])
+}
+
+model NegotiationRequest {
+  id               String            @id @default(cuid())
+  activationId     String            @unique
+  organizationId   String
+  electionId       String
+  status           NegotiationStatus @default(REQUESTED)
+  voterCount       Int
+  standardPrice    Int
+  negotiatedAmount Int?
+  contactName      String
+  contactEmail     String
+  contactPhone     String?
+  message          String?
+  internalNotes    String?
+  assignedToId     String?
+  settlementRef    String?
+  decidedAt        DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  activation    CommercialActivation @relation(fields: [activationId], references: [id], onDelete: Cascade)
+  organization  Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  election      Election             @relation(fields: [electionId], references: [id], onDelete: Cascade)
+  assignedTo    User?                @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  @@index([activationId])
+  @@index([organizationId])
+  @@index([status])
+}
+
+model Subscription {
+  id             String           @id @default(cuid())
+  organizationId String
+  tier           SubscriptionTier
+  startDate      DateTime         @default(now())
+  endDate        DateTime?
+  isActive       Boolean          @default(true)
+  paymentRef     String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  payments     Payment[]
+
+  @@index([organizationId])
+}
+
+model Payment {
+  id             String        @id @default(cuid())
+  subscriptionId String
+  amount         Float
+  currency       String        @default("NGN")
+  status         PaymentStatus @default(PENDING)
+  reference      String        @unique
+  provider       String        @default("paystack")
+  metadata       String?
+  paidAt         DateTime?
+  createdAt      DateTime      @default(now())
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([reference])
+}
+
+model Notification {
+  id          String             @id @default(cuid())
+  type        NotificationType
+  recipient   String
+  subject     String?
+  body        String
+  status      NotificationStatus @default(QUEUED)
+  electionId  String?
+  metadata    String?
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  createdAt   DateTime           @default(now())
+
+  election Election? @relation(fields: [electionId], references: [id], onDelete: SetNull)
+
+  @@index([electionId])
+  @@index([status])
+}
+
+model AuditLog {
+  id             String      @id @default(cuid())
+  actorId        String?
+  organizationId String?
+  action         AuditAction
+  resource       String
+  resourceId     String?
+  result         String?
+  metadata       String?
+  correlationId  String?
+  ipAddress      String?
+  userAgent      String?
+  timestamp      DateTime    @default(now())
+
+  actor        User?         @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([actorId])
+  @@index([action])
+  @@index([timestamp])
+}
+
+model SecurityEvent {
+  id             String            @id @default(cuid())
+  type           SecurityEventType
+  severity       Severity          @default(MEDIUM)
+  organizationId String?
+  details        String?
+  ipAddress      String?
+  userAgent      String?
+  resolved       Boolean           @default(false)
+  resolvedAt     DateTime?
+  createdAt      DateTime          @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([type])
+  @@index([severity])
+  @@index([createdAt])
+}
+
+model SupportTicket {
+  id             String         @id @default(cuid())
+  subject        String
+  description    String
+  status         TicketStatus   @default(OPEN)
+  priority       TicketPriority @default(MEDIUM)
+  organizationId String
+  createdById    String
+  assignedToId   String?
+  electionId     String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User              @relation("TicketCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  assignedTo   User?             @relation("TicketAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  messages     SupportMessage[]
+
+  @@index([organizationId])
+  @@index([status])
+}
+
+model SupportMessage {
+  id         String   @id @default(cuid())
+  ticketId   String
+  senderId   String
+  body       String
+  isInternal Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  sender User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+}
