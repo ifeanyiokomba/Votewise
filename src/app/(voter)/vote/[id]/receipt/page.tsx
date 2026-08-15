@@ -16,6 +16,7 @@ import {
   AlertCircle,
   Info,
   ReceiptText,
+  Award,
 } from "lucide-react";
 
 import { cn, formatDate } from "@/lib/utils";
@@ -160,6 +161,16 @@ function ReceiptInner() {
                   >
                     <ShieldCheck className="size-4" />
                     Verify your ballot
+                  </a>
+                </Button>
+                <Button asChild variant="outline" size="lg">
+                  <a
+                    href={`/certificate/${encodeURIComponent(reference)}`}
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    <Award className="size-4" />
+                    Get certificate
                   </a>
                 </Button>
               </div>

@@ -739,3 +739,87 @@ Task: Assess project status, QA test via agent-browser, add new features, improv
 - **Election comparison view** — could add a cross-election comparison page showing turnout trends over time.
 - **Voter engagement scoring** — could add a per-voter engagement score (verified + voted + speed) for gamification.
 - **Results certificate generation** — could add downloadable participation certificates for voters.
+
+---
+Task ID: CRON-6 (webDevReview round 6)
+Agent: Lead (orchestrator) — cron-triggered continuous review
+Task: Assess project status, QA test via agent-browser, add new features, improve styling.
+
+## Current Project Status Assessment
+- Votewise is fully functional end-to-end. Three services running: Next.js (:3000), socket.io monitor (:3003), election scheduler (background).
+- `bun run lint` passes with 0 errors, 0 warnings.
+- No runtime errors in dev.log.
+- All major flows verified: landing → auth → dashboard (with leaderboard) → election command center → voter flow → public results → observer view → settings → PDF report → compare page → certificate.
+
+## Bugs Found & Fixed
+- No bugs found during this round's QA. All flows from round 5 remain working correctly.
+
+## New Features Added
+
+### 1. Election Comparison View (`/dashboard/compare`)
+- **New API**: `GET /api/admin/compare` — returns all elections with computed metrics (turnout, voters, votes, positions, candidates), a trend array (elections with voters over time), type distribution, status distribution, and aggregate totals.
+- **New page**: `src/app/dashboard/compare/page.tsx` — a premium analytics page with:
+  - 4 StatCards (total elections, total voters, total votes, average turnout).
+  - **Turnout trend chart**: animated bar chart with gradient bars, hover tooltips showing turnout/votes/voters, and framer-motion staggered entrance.
+  - **Election types distribution**: progress bars with percentage breakdown by type (General, Faculty, Department, etc.).
+  - **Status breakdown**: colored dot list with status counts.
+  - **Detailed comparison table**: side-by-side metrics for every election with status badges, turnout progress bars, dates, and click-through navigation. Scrollable with sticky header.
+- Added "Compare" to the sidebar nav (`nav-config.ts`), command palette, and dashboard shell title resolver.
+- Verified: page loads with 3 elections, 50% avg turnout, trend chart showing 2 elections with voters, type distribution (33% each), and a detailed comparison table.
+
+### 2. Voter Participation Certificate (`/certificate/[reference]`)
+- **New page**: `src/app/certificate/[reference]/page.tsx` — a server-rendered, print-friendly certificate of participation with:
+  - Premium bordered certificate design with decorative corner accents and a vote-icon watermark.
+  - Votewise logo header with "CERTIFICATE OF PARTICIPATION" label.
+  - Voter email, election name, organization name.
+  - Verification reference in an emerald-tinted box with "Ballot received and recorded" confirmation.
+  - Issue date and election ID footer.
+  - Privacy note: "Ballot secrecy is preserved — individual vote choices are never linked to voter identity."
+  - `@media print` styles for A4 landscape PDF output.
+  - "Get certificate" button added to the voter receipt page (opens in new tab).
+  - Not-found state for invalid references.
+- Added `/certificate` to public routes in `tenant.ts` and `proxy.ts`.
+- Verified: opened certificate with a real receipt reference → renders full certificate with voter email, election name, reference, and date.
+
+### 3. Dashboard Quick-Search Enhancement
+- The command palette (⌘K) already supports navigation. This round, added "Compare Elections" to the command palette's navigation items so it's discoverable via quick-search.
+
+## Styling Improvements
+
+### Positions tab (election command center → Positions)
+- Position cards now have `hover-lift` class for subtle translateY + shadow on hover.
+- Position icon: upgraded from muted background to `bg-primary/10 text-primary`.
+- Max votes badge: upgraded to `border-primary/30 bg-primary/5 text-primary` for better visual emphasis.
+- Candidate count badge: now uses `bg-primary/10 text-primary` when candidates exist, or muted when zero.
+- Vote count badge: now uses `bg-emerald-500/10 text-emerald-600` when votes exist, or muted when zero — providing instant visual feedback on engagement.
+
+### Voter receipt page
+- Added "Get certificate" button (outline variant with Award icon) next to "Verify your ballot" — gives voters a tangible artifact of their participation.
+
+## Verification Results
+- `bun run lint`: 0 errors, 0 warnings.
+- agent-browser end-to-end:
+  - ✅ Compare page: loads with 3 elections, 50% avg turnout, trend chart, type/status distributions, and detailed comparison table.
+  - ✅ Certificate: `/certificate/{reference}` renders full certificate with voter email, election name, reference, date, and privacy note.
+  - ✅ "Get certificate" button visible on voter receipt page.
+  - ✅ Positions tab: enhanced cards with hover-lift, primary-tinted icons and badges, emerald vote count pills.
+  - ✅ "Compare" in sidebar nav and command palette.
+  - ✅ No console errors on any tested page.
+
+## Files Modified/Created
+- **Created**: `src/app/api/admin/compare/route.ts`, `src/app/dashboard/compare/page.tsx`, `src/app/certificate/[reference]/page.tsx`.
+- **Modified**: `src/components/dashboard/nav-config.ts` (+Compare with BarChart3 icon), `src/components/dashboard/dashboard-shell.tsx` (+Compare title), `src/components/dashboard/command-palette.tsx` (+Compare Elections + BarChart3 icon), `src/lib/tenant.ts` (+`/certificate`), `src/proxy.ts` (+`/certificate/` passthrough), `src/app/(voter)/vote/[id]/receipt/page.tsx` (+Get certificate button + Award icon), `src/app/dashboard/elections/[id]/positions/page.tsx` (hover-lift + enhanced badges/icons).
+
+## Unresolved Issues / Risks / Next-Phase Recommendations
+- **No real SMS/email/WhatsApp provider** — OTP delivered via in-app Notification log + devCode hint. Wire Resend/Termii for production.
+- **Payments simulated** — no Paystack webhook. Add real webhook verification.
+- **No automated tests** — recommend adding vitest for vote.service, result.service, election transitions, otp.service, compare API, and certificate page.
+- **No MFA for admins** — recommend adding TOTP-based MFA for ORG_OWNER/ORG_ADMIN/PLATFORM_ADMIN roles.
+- **Subdomain multi-tenancy** — `tenant.ts` resolution exists but single-port sandbox serves one org. Enable in production.
+- **Observer authentication** — the observer view is currently public. Add token-based observer authentication with signed links and expiry.
+- **Scheduler restart-on-reboot** — the scheduler runs as a background process; add it to a process manager or systemd for production reliability.
+- **Real-time auto-transition notifications** — when the scheduler transitions an election, it should trigger notifications based on saved preferences.
+- **Voter engagement scoring** — could add a per-voter engagement score (verified + voted + speed) for gamification.
+- **Election comparison export** — could add CSV/PDF export of the comparison table for reporting.
+- **Certificate verification API** — could add a public API to verify certificate authenticity by reference (currently the certificate page itself serves as verification).
+- **Cross-election voter deduplication** — the same voter may participate in multiple elections; could add a unified voter identity view.

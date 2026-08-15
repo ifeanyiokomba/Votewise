@@ -28,6 +28,7 @@ import {
   Home,
   ExternalLink,
   Search,
+  BarChart3,
 } from "lucide-react";
 
 interface CommandPaletteProps {
@@ -41,6 +42,7 @@ const NAV_ITEMS = [
   { label: "Overview", href: "/dashboard", icon: LayoutDashboard, group: "Navigation" },
   { label: "Elections", href: "/dashboard/elections", icon: Vote, group: "Navigation" },
   { label: "Voters Directory", href: "/dashboard/voters", icon: Users, group: "Navigation" },
+  { label: "Compare Elections", href: "/dashboard/compare", icon: BarChart3, group: "Navigation" },
   { label: "Support", href: "/dashboard/support", icon: LifeBuoy, group: "Navigation" },
   { label: "Audit Log", href: "/dashboard/audit", icon: ScrollText, group: "Navigation" },
   { label: "Security", href: "/dashboard/security", icon: ShieldCheck, group: "Navigation" },

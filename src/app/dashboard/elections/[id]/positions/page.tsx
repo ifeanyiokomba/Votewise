@@ -207,9 +207,9 @@ export default function PositionsPage({
         ) : (
           <div className="space-y-3">
             {positions.map((p, i) => (
-              <Card key={p.id} className="overflow-hidden">
+              <Card key={p.id} className="overflow-hidden transition-all hover-lift hover:shadow-md">
                 <CardContent className="flex items-center gap-3 p-4">
-                  <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
                     <GripVertical className="h-4 w-4" />
                   </div>
                   <div className="flex w-7 shrink-0 items-center justify-center text-xs font-semibold text-muted-foreground tabular-nums">
@@ -218,7 +218,7 @@ export default function PositionsPage({
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="truncate text-sm font-semibold">{p.title}</h3>
-                      <Badge variant="outline" className="text-[10px]">
+                      <Badge variant="outline" className="border-primary/30 bg-primary/5 text-[10px] text-primary">
                         max {p.maxChoices} {p.maxChoices === 1 ? "vote" : "votes"}
                       </Badge>
                     </div>
@@ -229,19 +229,31 @@ export default function PositionsPage({
                     )}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
-                    <span className="hidden items-center gap-1 rounded-md border bg-muted/40 px-2 py-1 text-xs sm:inline-flex">
-                      <Users className="h-3 w-3 text-muted-foreground" />
+                    <span
+                      className={`hidden items-center gap-1 rounded-md px-2 py-1 text-xs sm:inline-flex ${
+                        (p._count?.candidates ?? 0) > 0
+                          ? "bg-primary/10 text-primary"
+                          : "bg-muted/40 text-muted-foreground"
+                      }`}
+                    >
+                      <Users className="h-3 w-3" />
                       <span className="font-semibold tabular-nums">
                         {p._count?.candidates ?? 0}
                       </span>
-                      <span className="text-muted-foreground">cands</span>
+                      <span className="opacity-70">cands</span>
                     </span>
-                    <span className="hidden items-center gap-1 rounded-md border bg-muted/40 px-2 py-1 text-xs sm:inline-flex">
-                      <Vote className="h-3 w-3 text-muted-foreground" />
+                    <span
+                      className={`hidden items-center gap-1 rounded-md px-2 py-1 text-xs sm:inline-flex ${
+                        (p._count?.votes ?? 0) > 0
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                          : "bg-muted/40 text-muted-foreground"
+                      }`}
+                    >
+                      <Vote className="h-3 w-3" />
                       <span className="font-semibold tabular-nums">
                         {p._count?.votes ?? 0}
                       </span>
-                      <span className="text-muted-foreground">votes</span>
+                      <span className="opacity-70">votes</span>
                     </span>
                     <Button
                       variant="ghost"

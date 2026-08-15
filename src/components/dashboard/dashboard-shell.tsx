@@ -28,6 +28,7 @@ const DEFAULT_TITLES: Record<string, string> = {
   "/dashboard": "Overview",
   "/dashboard/elections": "Elections",
   "/dashboard/voters": "Voters",
+  "/dashboard/compare": "Compare Elections",
   "/dashboard/support": "Support",
   "/dashboard/audit": "Audit Log",
   "/dashboard/security": "Security",
