@@ -48,6 +48,7 @@ const PUBLIC_ROUTES = [
   "/vote",
   "/results",
   "/observe",
+  "/report",
   "/verify-ballot",
   "/_next",
   "/favicon.ico",

@@ -252,7 +252,7 @@ export default function CandidatesPage({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.2, delay: Math.min(i * 0.03, 0.25) }}
               >
-                <Card className="group h-full overflow-hidden transition-all hover:shadow-md">
+                <Card className="group h-full overflow-hidden transition-all hover-lift hover:shadow-md">
                   <CardContent className="flex h-full flex-col gap-3 p-4">
                     <div className="flex items-start gap-3">
                       <Avatar className="h-12 w-12 border">
@@ -303,11 +303,16 @@ export default function CandidatesPage({
                       <Badge variant="outline" className="text-[10px]">
                         {c.position?.title ?? positionTitle(c.positionId)}
                       </Badge>
-                      <span className="inline-flex items-center gap-1 text-muted-foreground">
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium tabular-nums",
+                          (c._count?.votes ?? 0) > 0
+                            ? "bg-primary/10 text-primary"
+                            : "text-muted-foreground"
+                        )}
+                      >
                         <Vote className="h-3 w-3" />
-                        <span className="font-semibold text-foreground tabular-nums">
-                          {formatNumber(c._count?.votes ?? 0)}
-                        </span>
+                        {formatNumber(c._count?.votes ?? 0)} vote{(c._count?.votes ?? 0) === 1 ? "" : "s"}
                       </span>
                     </div>
                   </CardContent>

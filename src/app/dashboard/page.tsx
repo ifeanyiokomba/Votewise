@@ -24,6 +24,7 @@ import {
 } from "@/components/dashboard/dashboard-skeleton";
 import { ElectionCard } from "@/components/dashboard/election-card";
 import { LiveActivityFeed } from "@/components/dashboard/live-activity-feed";
+import { EngagementLeaderboard } from "@/components/dashboard/engagement-leaderboard";
 import { apiFetch } from "@/lib/api-fetch";
 import { cn, formatNumber, formatRelative, formatPercent } from "@/lib/utils";
 import {
@@ -397,6 +398,9 @@ export default function OverviewPage() {
           </Card>
         </aside>
       </div>
+
+      {/* Turnout leaderboard */}
+      <EngagementLeaderboard />
     </div>
   );
 }

@@ -28,7 +28,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { PageHeader } from "@/components/dashboard/page-header";
-import { Switch } from "@/components/ui/switch";
+import { NotificationPreferencesCard } from "@/components/dashboard/notification-preferences-card";
 import { ErrorState } from "@/components/dashboard/dashboard-skeleton";
 import { Logo } from "@/components/shared/logo";
 import { apiFetch } from "@/lib/api-fetch";
@@ -43,13 +43,6 @@ import {
   Trash2,
   AlertTriangle,
   Sparkles,
-  Bell,
-  Mail,
-  Smartphone,
-  MessageSquare,
-  Vote,
-  ShieldAlert,
-  CheckCircle2,
 } from "lucide-react";
 import { SUBSCRIPTION_PLANS } from "@/lib/constants";
 import type { MeResponse, OrganizationDTO } from "@/components/dashboard/types";
@@ -407,64 +400,7 @@ export default function SettingsPage() {
       </motion.div>
 
       {/* Notification preferences */}
-      <motion.div
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.25, delay: 0.075 }}
-      >
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Bell className="h-4 w-4 text-primary" />
-              Notification preferences
-            </CardTitle>
-            <CardDescription>
-              Choose which events trigger notifications and on which channels. Preferences are
-              saved per organization.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-1">
-            {NOTIFICATION_PREFS.map((pref) => {
-              const Icon = pref.icon;
-              return (
-                <div
-                  key={pref.key}
-                  className="flex flex-col gap-3 border-b py-4 last:border-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-                      <Icon className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">{pref.label}</p>
-                      <p className="text-xs text-muted-foreground">{pref.description}</p>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3 pl-12 sm:pl-0">
-                    <ChannelToggle icon={Mail} label="Email" defaultChecked={pref.emailDefault} />
-                    <ChannelToggle icon={Smartphone} label="SMS" defaultChecked={pref.smsDefault} />
-                    <ChannelToggle icon={MessageSquare} label="WhatsApp" defaultChecked={pref.whatsappDefault} />
-                  </div>
-                </div>
-              );
-            })}
-          </CardContent>
-          <CardFooter className="flex items-center justify-between border-t bg-muted/20 py-3">
-            <p className="text-xs text-muted-foreground">
-              Changes apply to future notifications only.
-            </p>
-            <Button
-              size="sm"
-              onClick={() => toast.success("Preferences saved (demo)", {
-                description: "Connect a settings API to persist preferences.",
-              })}
-            >
-              <CheckCircle2 className="h-4 w-4" />
-              Save preferences
-            </Button>
-          </CardFooter>
-        </Card>
-      </motion.div>
+      <NotificationPreferencesCard />
 
       {/* Danger zone */}
       <motion.div
@@ -570,79 +506,5 @@ export default function SettingsPage() {
         <Logo size="sm" showText />
       </div>
     </div>
-  );
-}
-
-const NOTIFICATION_PREFS = [
-  {
-    key: "election-live",
-    label: "Election goes live",
-    description: "When an election transitions to LIVE status.",
-    icon: Vote,
-    emailDefault: true,
-    smsDefault: false,
-    whatsappDefault: false,
-  },
-  {
-    key: "vote-cast",
-    label: "Vote cast",
-    description: "Each time a voter successfully casts a ballot.",
-    icon: CheckCircle2,
-    emailDefault: false,
-    smsDefault: false,
-    whatsappDefault: false,
-  },
-  {
-    key: "election-closed",
-    label: "Election closed",
-    description: "When voting closes and results are ready for review.",
-    icon: Bell,
-    emailDefault: true,
-    smsDefault: false,
-    whatsappDefault: false,
-  },
-  {
-    key: "results-published",
-    label: "Results published",
-    description: "When results are made public for voters.",
-    icon: CheckCircle2,
-    emailDefault: true,
-    smsDefault: false,
-    whatsappDefault: false,
-  },
-  {
-    key: "security-alert",
-    label: "Security alerts",
-    description: "Suspicious activity, failed logins, or cross-tenant access attempts.",
-    icon: ShieldAlert,
-    emailDefault: true,
-    smsDefault: true,
-    whatsappDefault: false,
-  },
-] as const;
-
-function ChannelToggle({
-  icon: Icon,
-  label,
-  defaultChecked,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  defaultChecked: boolean;
-}) {
-  const [checked, setChecked] = useState(defaultChecked);
-  return (
-    <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border bg-background px-2.5 py-1.5 text-xs transition-colors hover:bg-accent">
-      <Icon className="h-3 w-3 text-muted-foreground" />
-      <span className={checked ? "font-medium text-foreground" : "text-muted-foreground"}>
-        {label}
-      </span>
-      <Switch
-        checked={checked}
-        onCheckedChange={setChecked}
-        className="scale-75 data-[state=checked]:bg-primary"
-        aria-label={`Toggle ${label}`}
-      />
-    </label>
   );
 }

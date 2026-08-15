@@ -31,6 +31,7 @@ import {
   Loader2,
   Send,
   Download,
+  FileText,
 } from "lucide-react";
 import { formatNumber, formatPercent } from "@/lib/utils";
 import type {
@@ -180,9 +181,16 @@ export default function ResultsPage({
           </div>
           <div className="flex items-center gap-2">
             {results && results.totalVotes > 0 && (
-              <Button onClick={exportResultsCsv} variant="outline" size="sm">
-                <Download className="h-4 w-4" /> Export CSV
-              </Button>
+              <>
+                <Button onClick={exportResultsCsv} variant="outline" size="sm">
+                  <Download className="h-4 w-4" /> CSV
+                </Button>
+                <Button asChild variant="outline" size="sm">
+                  <a href={`/report/${electionId}`} target="_blank" rel="noopener">
+                    <FileText className="h-4 w-4" /> PDF Report
+                  </a>
+                </Button>
+              </>
             )}
             {isPublished ? (
               <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">

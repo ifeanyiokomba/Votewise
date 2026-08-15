@@ -659,3 +659,83 @@ Task: Assess project status, QA test via agent-browser, add new features, improv
 - **PDF results export** — currently CSV only. Add PDF report generation for official result publication.
 - **Election scheduler restart-on-reboot** — the scheduler runs as a background process; add it to a process manager or systemd for production reliability. Consider integrating it into the main Next.js app as a serverless cron or API route with a secret token.
 - **Real-time election auto-transition notifications** — when the scheduler transitions an election to LIVE or CLOSED, it should trigger notifications to org admins. Currently it only logs to the audit table.
+
+---
+Task ID: CRON-5 (webDevReview round 5)
+Agent: Lead (orchestrator) — cron-triggered continuous review
+Task: Assess project status, QA test via agent-browser, add new features, improve styling.
+
+## Current Project Status Assessment
+- Votewise is fully functional end-to-end. Three services running: Next.js (:3000), socket.io monitor (:3003), and election scheduler (background).
+- `bun run lint` passes with 0 errors, 0 warnings.
+- No runtime errors in dev.log.
+- All major flows verified: landing → auth → dashboard (with leaderboard) → election command center → voter flow → public results → observer view → settings (with persistence) → PDF report.
+- The election scheduler correctly auto-closed the overdue LIVE election; re-activated it with a 48h end time for testing.
+
+## Bugs Found & Fixed
+- **PDF report page server-side error**: the report page was a Server Component with an `onClick` handler on the print button, which is not allowed in Next.js 16. Fixed by extracting the print button into a `<PrintButton />` client component.
+- No other bugs found during QA.
+
+## New Features Added
+
+### 1. Notification Preferences Persistence
+- **New API**: `GET /api/admin/notification-preferences` (fetch prefs from org's branding JSON) + `PATCH /api/admin/notification-preferences` (persist prefs with zod validation + audit logging). Preferences are stored in the organization's `branding` JSON field under a `notificationPreferences` key.
+- **New component**: `src/components/dashboard/notification-preferences-card.tsx` — self-contained card that fetches preferences on mount, manages 5 event types × 3 channels = 15 toggle switches, and saves via PATCH API. Shows loading skeletons, saving spinner, and success toast.
+- **Settings page upgraded**: replaced the demo-only inline notification preferences section (with `ChannelToggle` components and `NOTIFICATION_PREFS` constant) with the new `<NotificationPreferencesCard />` component. Removed all unused code (icons, Switch import, ChannelToggle function, NOTIFICATION_PREFS constant).
+- Verified: toggled "Vote cast → Email" → saved → reloaded page → preference persisted (checked=true after reload).
+
+### 2. PDF Results Export (Official Report)
+- **New page**: `src/app/report/[id]/page.tsx` — a server-rendered, print-friendly official results report with:
+  - Report header with Votewise logo, election name, org name, generation timestamp, and status.
+  - Election details grid (type, start/end time, timezone).
+  - Summary stats (eligible voters, votes cast, turnout, positions) with emerald-tinted stat tiles.
+  - Per-position results table with rank medals, candidate names, vote counts, percentages, and progress bars. Winner highlighted with emerald background + trophy icon. Tied results flagged.
+  - Footer with report ID, tamper-evidence note, and Votewise branding.
+  - `@media print` styles for clean PDF output via browser's "Save as PDF".
+  - `<PrintButton />` client component for the print action.
+- Added `/report` to public routes in `tenant.ts` and `proxy.ts`.
+- Added "PDF Report" button to the election results tab (next to "CSV" export).
+- Verified: opened `/report/{publishedElectionId}` → full report rendered with all positions, candidates, vote counts, and winner highlights.
+
+### 3. Voter Turnout Leaderboard (Engagement Metrics)
+- **New API**: `GET /api/admin/engagement` — returns a leaderboard of elections sorted by turnout (only elections with voters), plus summary metrics (total voters, total votes, average turnout, elections with voters, active count, best election).
+- **New component**: `src/components/dashboard/engagement-leaderboard.tsx` — premium card with:
+  - Summary strip: 3 stat tiles (total voters, total votes, avg turnout) with icons.
+  - Ranked leaderboard: medal icons (gold/silver/bronze) for top 3, numbered badges for the rest. Each row shows election name, status badge, voter/vote/position counts, turnout progress bar, and a hover arrow.
+  - Scrollable list (max 24rem) with framer-motion staggered entrance.
+  - Click any election to navigate to its command center.
+- Injected into the dashboard overview below the active elections + side panels grid.
+- Verified: "Turnout leaderboard" visible on dashboard with 2 ranked elections (75% and 25% turnout), summary stats (20 voters, 9 votes, 50% avg).
+
+## Styling Improvements
+
+### Candidate cards (election command center → Candidates tab)
+- Added `hover-lift` class for a subtle translateY + shadow on hover.
+- Enhanced the vote count badge: now shows as a pill badge with `bg-primary/10 text-primary` when votes exist, or muted text when zero. Displays "N votes" (with proper singular/plural).
+
+## Verification Results
+- `bun run lint`: 0 errors, 0 warnings.
+- agent-browser end-to-end:
+  - ✅ Notification preferences: loaded from API, toggled "Vote cast → Email", saved, persisted across page reload.
+  - ✅ PDF report: `/report/{id}` renders full official report with header, stats, results table, winner highlights, and print button.
+  - ✅ "PDF Report" button visible on results tab next to "CSV" export.
+  - ✅ Turnout leaderboard visible on dashboard overview with 2 ranked elections, summary stats, medal icons, and turnout bars.
+  - ✅ Candidate cards have hover-lift effect and enhanced vote count pills.
+  - ✅ No console errors on any tested page.
+
+## Files Modified/Created
+- **Created**: `src/app/api/admin/notification-preferences/route.ts`, `src/components/dashboard/notification-preferences-card.tsx`, `src/app/api/admin/engagement/route.ts`, `src/components/dashboard/engagement-leaderboard.tsx`, `src/app/report/[id]/page.tsx`, `src/components/shared/print-button.tsx`.
+- **Modified**: `src/app/dashboard/settings/page.tsx` (replaced inline prefs with `<NotificationPreferencesCard />`, removed unused code), `src/app/dashboard/page.tsx` (added `<EngagementLeaderboard />`), `src/app/dashboard/elections/[id]/results/page.tsx` (added PDF Report button + FileText icon), `src/app/dashboard/elections/[id]/candidates/page.tsx` (hover-lift + enhanced vote count pill), `src/lib/tenant.ts` (+`/report`), `src/proxy.ts` (+`/report/` passthrough).
+
+## Unresolved Issues / Risks / Next-Phase Recommendations
+- **No real SMS/email/WhatsApp provider** — OTP delivered via in-app Notification log + devCode hint. Wire Resend/Termii for production.
+- **Payments simulated** — no Paystack webhook. Add real webhook verification.
+- **No automated tests** — recommend adding vitest for vote.service, result.service, election transitions, otp.service, organization API, notification preferences API, and engagement API.
+- **No MFA for admins** — recommend adding TOTP-based MFA for ORG_OWNER/ORG_ADMIN/PLATFORM_ADMIN roles.
+- **Subdomain multi-tenancy** — `tenant.ts` resolution exists but single-port sandbox serves one org. Enable in production.
+- **Observer authentication** — the observer view is currently public. Add token-based observer authentication with signed links and expiry.
+- **Scheduler restart-on-reboot** — the scheduler runs as a background process; add it to a process manager or systemd for production reliability.
+- **Real-time auto-transition notifications** — when the scheduler transitions an election to LIVE or CLOSED, it should trigger notifications to org admins based on the saved notification preferences.
+- **Election comparison view** — could add a cross-election comparison page showing turnout trends over time.
+- **Voter engagement scoring** — could add a per-voter engagement score (verified + voted + speed) for gamification.
+- **Results certificate generation** — could add downloadable participation certificates for voters.
