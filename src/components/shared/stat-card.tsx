@@ -18,7 +18,7 @@ export function StatCard({
   className?: string;
 }) {
   return (
-    <Card className={cn("overflow-hidden", className)}>
+    <Card className={cn("overflow-hidden transition-all hover-lift hover:shadow-md", className)}>
       <CardContent className="p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -42,7 +42,7 @@ export function StatCard({
               </p>
             )}
           </div>
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/10 transition-colors group-hover:bg-primary/15">
             <Icon className="h-5 w-5" />
           </div>
         </div>

@@ -974,3 +974,73 @@ Task: Assess project status, QA test via agent-browser, add new features, improv
 - **Certificate digital signature** — could add a cryptographic signature to the certificate for tamper-evidence.
 - **Engagement scoring export** — could add CSV/PDF export of the engagement leaderboard.
 - **Comparison time-range filter** — could add the same time-range filter to the comparison page.
+
+---
+Task ID: CRON-9 (webDevReview round 9)
+Agent: Lead (orchestrator) — cron-triggered continuous review
+Task: Assess project status, QA test via agent-browser, add new features, improve styling.
+
+## Current Project Status Assessment
+- Votewise is fully functional end-to-end. Three services running: Next.js (:3000), socket.io monitor (:3003), election scheduler (background).
+- `bun run lint` passes with 0 errors, 0 warnings.
+- No runtime errors in dev.log.
+- All major flows verified: landing → auth → dashboard (with leaderboard + range filter + engagement scoring + export) → election command center → voter flow → public results → observer view → settings → PDF report → compare (with range + CSV + PDF export) → certificate (with QR) → verify-ballot → voters (with unified identities).
+
+## Bugs Found & Fixed
+- No bugs found during this round's QA. All flows from round 8 remain working correctly.
+
+## New Features Added
+
+### 1. Engagement Scoring CSV Export
+- Added `exportCsv` function to `<EngagementScoringCard />` that generates a CSV with columns: Rank, Voter, Email, Election, Verified, Voted, Score, Tier + summary rows (totals, avg score, top score, engagement rate).
+- "Export" button (ghost variant with Download icon) added to the card header next to the engagement rate badge.
+- Verified: "Export" button visible on the engagement scoring card.
+
+### 2. Comparison Time-Range Filter
+- **Enhanced API**: `GET /api/admin/compare?range=all|week|month|quarter` — accepts a time-range parameter that filters elections by start/creation time within 7/30/90 days.
+- **Enhanced page**: `/dashboard/compare` now has a time-range selector (All time / 90 days / 30 days / 7 days) as a segmented button group in the PageHeader actions area, alongside the CSV and PDF Report buttons. Changing the range reloads the comparison data.
+- Verified: range selector shows 4 options on the compare page.
+
+### 3. Cross-Election Unified Voter Identity View
+- **New API**: `GET /api/admin/unified-voters` — groups voters across elections by email (or phone/identifier fallback) to show a unified identity. Returns deduplicated voter list with: name, masked email/phone, department, list of elections participated in (with verified/voted status per election), total verified/voted counts, and election count. Also returns summary stats (total identities, multi-election voters, cross-election voters, avg elections per voter).
+- **New component**: `src/components/dashboard/unified-voters-card.tsx` — premium card with:
+  - 4 StatCards (Unique Voters, Multi-Election, Cross-Election Voters, Avg Elections/Voter).
+  - Unified voter list: avatar, name, multi-election badge, voted badge, masked email/phone, department/level, and inline election participation pills (each showing election name + voted/verified icon).
+  - Multi-election voters highlighted with `border-primary/20 bg-primary/5`.
+  - Scrollable list with framer-motion staggered entrance.
+- Injected into the Voters directory page (`/dashboard/voters`) below the voters table.
+- Verified: "Unified voter identities" section visible with deduplicated voters showing election participation pills.
+
+## Styling Improvements
+
+### Dashboard StatCard
+- Added `hover-lift` class for a subtle translateY + shadow on hover.
+- Icon container now has `ring-1 ring-primary/10` and `group-hover:bg-primary/15` transition for a more premium feel.
+
+## Verification Results
+- `bun run lint`: 0 errors, 0 warnings.
+- agent-browser end-to-end:
+  - ✅ Engagement scoring: "Export" button visible.
+  - ✅ Compare page: time-range selector (All time / 90 days / 30 days / 7 days) visible alongside CSV and PDF Report buttons.
+  - ✅ Voters page: "Unified voter identities" section with deduplicated voters, election pills, and summary stats.
+  - ✅ StatCards: hover-lift effect.
+  - ✅ No console errors on any tested page.
+
+## Files Modified/Created
+- **Created**: `src/app/api/admin/unified-voters/route.ts`, `src/components/dashboard/unified-voters-card.tsx`.
+- **Modified**: `src/components/dashboard/engagement-scoring-card.tsx` (exportCsv function + Export button + Download/Button/toast imports), `src/app/api/admin/compare/route.ts` (time-range filter parameter), `src/app/dashboard/compare/page.tsx` (range state + range selector UI), `src/app/dashboard/voters/page.tsx` (added UnifiedVotersCard), `src/components/shared/stat-card.tsx` (hover-lift + ring icon).
+
+## Unresolved Issues / Risks / Next-Phase Recommendations
+- **No real SMS/email/WhatsApp provider** — OTP delivered via in-app Notification log + devCode hint. Wire Resend/Termii for production.
+- **Payments simulated** — no Paystack webhook. Add real webhook verification.
+- **No automated tests** — recommend adding vitest for vote.service, result.service, election transitions, otp.service, engagement scoring, compare API, unified voters API, and certificate verification.
+- **No MFA for admins** — recommend adding TOTP-based MFA for ORG_OWNER/ORG_ADMIN/PLATFORM_ADMIN roles.
+- **Subdomain multi-tenancy** — `tenant.ts` resolution exists but single-port sandbox serves one org. Enable in production.
+- **Observer authentication** — the observer view is currently public. Add token-based observer authentication with signed links and expiry.
+- **Scheduler restart-on-reboot** — the scheduler runs as a background process; add it to a process manager or systemd for production reliability.
+- **Real-time auto-transition notifications** — when the scheduler transitions an election, it should trigger notifications based on saved preferences.
+- **Engagement scoring history** — currently scores are computed on-the-fly; could persist historical scores over time to track engagement trends.
+- **Certificate digital signature** — could add a cryptographic signature to the certificate for tamper-evidence.
+- **Unified voter merge** — could add a UI to manually merge duplicate voter identities that the automatic grouping didn't catch.
+- **Voter engagement badges** — could award digital badges (e.g. "First Vote", "Streak Voter", "Early Bird") based on engagement scoring.
+- **Comparison chart export as image** — could add PNG/SVG export of the turnout trend chart for embedding in presentations.

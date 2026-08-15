@@ -93,11 +93,12 @@ export default function ComparePage() {
   const [data, setData] = useState<CompareData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [range, setRange] = useState<"all" | "week" | "month" | "quarter">("all");
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (r: string) => {
     setLoading(true);
     setError(null);
-    const res = await apiFetch<CompareData>("/api/admin/compare");
+    const res = await apiFetch<CompareData>(`/api/admin/compare?range=${r}`);
     setLoading(false);
     if (res.success && res.data) {
       setData(res.data);
@@ -110,12 +111,19 @@ export default function ComparePage() {
     let cancelled = false;
     (async () => {
       if (cancelled) return;
-      await load();
+      await load(range);
     })();
     return () => {
       cancelled = true;
     };
-  }, [load]);
+  }, [range, load]);
+
+  const RANGES: { key: typeof range; label: string }[] = [
+    { key: "all", label: "All time" },
+    { key: "quarter", label: "90 days" },
+    { key: "month", label: "30 days" },
+    { key: "week", label: "7 days" },
+  ];
 
   if (loading) return <CompareSkeleton />;
   if (error || !data) {
@@ -193,7 +201,24 @@ export default function ComparePage() {
         title="Election Comparison"
         description="Compare turnout, participation, and engagement across all your elections."
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Time range selector */}
+            <div className="flex gap-0.5 rounded-lg border bg-muted/30 p-0.5">
+              {RANGES.map((r) => (
+                <button
+                  key={r.key}
+                  onClick={() => setRange(r.key)}
+                  className={cn(
+                    "rounded-md px-2 py-0.5 text-[10px] font-medium transition-colors",
+                    range === r.key
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
             <Button onClick={exportCsv} variant="outline" size="sm" className="gap-2">
               <Download className="h-4 w-4" />
               CSV

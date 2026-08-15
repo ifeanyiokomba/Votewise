@@ -61,6 +61,7 @@ import {
   initials,
 } from "@/lib/utils";
 import { toast } from "sonner";
+import { UnifiedVotersCard } from "@/components/dashboard/unified-voters-card";
 
 interface VoterDirectoryItem {
   id: string;
@@ -444,6 +445,9 @@ export default function VotersDirectoryPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Unified voter identities (cross-election) */}
+      <UnifiedVotersCard />
     </div>
   );
 }

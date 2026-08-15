@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { apiFetch } from "@/lib/api-fetch";
 import { cn, formatNumber, maskEmail } from "@/lib/utils";
+import { toast } from "sonner";
 import {
   Trophy,
   Zap,
@@ -18,6 +20,7 @@ import {
   Vote,
   Award,
   Flame,
+  Download,
 } from "lucide-react";
 
 interface ScoredVoter {
@@ -106,6 +109,50 @@ export function EngagementScoringCard() {
     return null;
   }
 
+  function exportCsv() {
+    if (leaderboard.length === 0) {
+      toast.error("Nothing to export");
+      return;
+    }
+    const headers = ["Rank", "Voter", "Email", "Election", "Verified", "Voted", "Score", "Tier"];
+    const rows = leaderboard.map((v, idx) => {
+      const tier = getTier(v.score);
+      return [
+        String(idx + 1),
+        v.name,
+        v.email,
+        v.electionName,
+        v.verified ? "Yes" : "No",
+        v.voted ? "Yes" : "No",
+        String(v.score),
+        tier.label,
+      ];
+    });
+    // Summary rows
+    rows.push([]);
+    rows.push(["SUMMARY"]);
+    rows.push(["Total Voters", String(summary.totalVoters)]);
+    rows.push(["Verified", String(summary.verifiedCount)]);
+    rows.push(["Voted", String(summary.votedCount)]);
+    rows.push(["Avg Score", String(summary.avgScore)]);
+    rows.push(["Top Score", String(summary.topScore)]);
+    rows.push(["Engagement Rate", `${summary.engagementRate}%`]);
+
+    const csv = [headers, ...rows]
+      .map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `votewise-engagement-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Engagement scores exported", {
+      description: `${leaderboard.length} voters downloaded as CSV.`,
+    });
+  }
+
   return (
     <Card className="overflow-hidden">
       <CardHeader className="border-b pb-4">
@@ -119,10 +166,16 @@ export function EngagementScoringCard() {
               Gamified participation scoring across your electorate
             </CardDescription>
           </div>
-          <Badge variant="outline" className="gap-1.5">
-            <TrendingUp className="h-3 w-3 text-primary" />
-            {summary.engagementRate}% engaged
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Button onClick={exportCsv} variant="ghost" size="sm" className="h-7 gap-1.5 px-2 text-xs">
+              <Download className="h-3 w-3" />
+              Export
+            </Button>
+            <Badge variant="outline" className="gap-1.5">
+              <TrendingUp className="h-3 w-3 text-primary" />
+              {summary.engagementRate}% engaged
+            </Badge>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="p-0">
