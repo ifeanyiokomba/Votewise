@@ -26,6 +26,7 @@ import { ElectionCard } from "@/components/dashboard/election-card";
 import { LiveActivityFeed } from "@/components/dashboard/live-activity-feed";
 import { EngagementLeaderboard } from "@/components/dashboard/engagement-leaderboard";
 import { EngagementScoringCard } from "@/components/dashboard/engagement-scoring-card";
+import { VoterBadgesCard } from "@/components/dashboard/voter-badges-card";
 import { apiFetch } from "@/lib/api-fetch";
 import { cn, formatNumber, formatRelative, formatPercent } from "@/lib/utils";
 import {
@@ -405,6 +406,9 @@ export default function OverviewPage() {
         <EngagementLeaderboard />
         <EngagementScoringCard />
       </div>
+
+      {/* Voter achievement badges */}
+      <VoterBadgesCard />
     </div>
   );
 }

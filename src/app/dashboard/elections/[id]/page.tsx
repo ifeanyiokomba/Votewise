@@ -8,6 +8,7 @@ import { StatCard } from "@/components/shared/stat-card";
 import { ElectionShell } from "@/components/dashboard/election-shell";
 import { VoteTimeline } from "@/components/dashboard/vote-timeline";
 import { DemographicsPanel, type DemographicsData } from "@/components/dashboard/demographics-panel";
+import { StatusTimeline } from "@/components/dashboard/status-timeline";
 import { ErrorState } from "@/components/dashboard/dashboard-skeleton";
 import { apiFetch } from "@/lib/api-fetch";
 import {
@@ -295,6 +296,9 @@ export default function ElectionOverviewPage({
           {analytics.demographics && (
             <DemographicsPanel demographics={analytics.demographics} />
           )}
+
+          {/* Status timeline */}
+          <StatusTimeline currentStatus={analytics.stats.status} />
         </div>
       )}
     </ElectionShell>

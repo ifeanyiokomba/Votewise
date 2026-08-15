@@ -1044,3 +1044,84 @@ Task: Assess project status, QA test via agent-browser, add new features, improv
 - **Unified voter merge** — could add a UI to manually merge duplicate voter identities that the automatic grouping didn't catch.
 - **Voter engagement badges** — could award digital badges (e.g. "First Vote", "Streak Voter", "Early Bird") based on engagement scoring.
 - **Comparison chart export as image** — could add PNG/SVG export of the turnout trend chart for embedding in presentations.
+
+---
+Task ID: CRON-10 (webDevReview round 10)
+Agent: Lead (orchestrator) — cron-triggered continuous review
+Task: Assess project status, QA test via agent-browser, add new features, improve styling.
+
+## Current Project Status Assessment
+- Votewise is fully functional end-to-end. Three services running: Next.js (:3000), socket.io monitor (:3003), election scheduler (background).
+- `bun run lint` passes with 0 errors, 0 warnings.
+- No runtime errors in dev.log.
+- All major flows verified: landing → auth → dashboard (with leaderboard + range filter + engagement scoring + export + voter badges) → election command center (with status timeline) → voter flow → public results → observer view → settings → PDF report → compare → certificate → verify-ballot → voters (with unified identities).
+
+## Bugs Found & Fixed
+- No bugs found during this round's QA. All flows from round 9 remain working correctly.
+
+## New Features Added
+
+### 1. Voter Engagement Badges (Gamification)
+- **New API**: `GET /api/admin/voter-badges` — awards digital badges based on engagement patterns:
+  - "First Vote" — Cast their first ballot
+  - "Verified Citizen" — Completed OTP verification
+  - "Speed Voter" — Voted within 30 min of verification
+  - "Early Bird" — Voted within the first hour of election going live
+  - "Streak Voter" — Voted in 2+ elections
+  - "Loyal Voter" — Participated in 3+ elections
+  - Groups voters by email for cross-election badges. Returns badge distribution and summary stats.
+- **New component**: `src/components/dashboard/voter-badges-card.tsx` — premium card with:
+  - Badge distribution grid: 6 badge types in a 3×2/6×1 grid, with earned (primary-tinted) vs unearned (muted+locked) states.
+  - Voter badges leaderboard: avatar, name, masked email, badge count, and earned badge icons (colored per badge type).
+  - Scrollable list with framer-motion staggered entrance.
+- Injected into the dashboard overview below the engagement analytics grid.
+- Verified: "Voter achievement badges" card visible with 4 badges awarded (First Vote: 1, Verified Citizen: 2, Speed Voter: 1) and a voter leaderboard.
+
+### 2. Election Status Timeline Visualization
+- **New component**: `src/components/dashboard/status-timeline.tsx` — a horizontal visual timeline showing all 13 lifecycle stages (Draft → Configuration → Voter Import → Candidates → Verification → Ready → Scheduled → Live → Paused → Closed → Results Review → Published → Archived):
+  - Each step has an icon, label, and description.
+  - Reached steps are primary-tinted; current step is highlighted with `shadow-glow scale-110` and a "Current" badge.
+  - Paused state is handled specially (shows up to LIVE as reached, with amber tint for the paused step).
+  - Connector lines between steps are filled (primary) for reached stages.
+  - Horizontally scrollable for mobile.
+- Injected into the election overview tab below the demographics panel.
+- Verified: "Lifecycle timeline" visible on election overview showing all stages from Draft through Live.
+
+### 3. Enhanced Audit Table Result Badges
+- Upgraded the audit log table's result column from plain colored text to colored pill badges with border + background:
+  - SUCCESS: emerald pill
+  - FAILED/ERROR: red pill
+  - CANCELLED: amber pill
+- Verified: audit page shows result badges with proper coloring.
+
+## Styling Improvements
+
+### Audit table
+- Result column upgraded from plain text to colored pill badges with `border + bg + text` styling for better visual scanning.
+
+## Verification Results
+- `bun run lint`: 0 errors, 0 warnings.
+- agent-browser end-to-end:
+  - ✅ Voter achievement badges: card visible with 6 badge types in distribution grid, 4 badges awarded, voter leaderboard with badge icons.
+  - ✅ Status timeline: visible on election overview showing all 13 lifecycle stages with current step highlighted.
+  - ✅ Audit table: result badges with colored pill styling.
+  - ✅ No console errors on any tested page.
+
+## Files Modified/Created
+- **Created**: `src/app/api/admin/voter-badges/route.ts`, `src/components/dashboard/voter-badges-card.tsx`, `src/components/dashboard/status-timeline.tsx`.
+- **Modified**: `src/app/dashboard/page.tsx` (added VoterBadgesCard), `src/app/dashboard/elections/[id]/page.tsx` (added StatusTimeline), `src/app/dashboard/audit/page.tsx` (result pill badges + enhanced RESULT_TONE).
+
+## Unresolved Issues / Risks / Next-Phase Recommendations
+- **No real SMS/email/WhatsApp provider** — OTP delivered via in-app Notification log + devCode hint. Wire Resend/Termii for production.
+- **Payments simulated** — no Paystack webhook. Add real webhook verification.
+- **No automated tests** — recommend adding vitest for vote.service, result.service, election transitions, otp.service, engagement scoring, voter badges API, status timeline, and compare API.
+- **No MFA for admins** — recommend adding TOTP-based MFA for ORG_OWNER/ORG_ADMIN/PLATFORM_ADMIN roles.
+- **Subdomain multi-tenancy** — `tenant.ts` resolution exists but single-port sandbox serves one org. Enable in production.
+- **Observer authentication** — the observer view is currently public. Add token-based observer authentication with signed links and expiry.
+- **Scheduler restart-on-reboot** — the scheduler runs as a background process; add it to a process manager or systemd for production reliability.
+- **Real-time auto-transition notifications** — when the scheduler transitions an election, it should trigger notifications based on saved preferences.
+- **Badge persistence** — badges are currently computed on-the-fly; could persist earned badges to the database for historical tracking and notification on earn.
+- **Badge notification emails** — could send congratulatory emails when a voter earns a new badge.
+- **Status timeline click-to-filter** — could make timeline steps clickable to filter audit logs by that status transition.
+- **Voter badge profile page** — could add a public-facing badge profile page where voters can view and share their earned badges.
+- **Comparison chart image export** — could add PNG/SVG export of the turnout trend chart for embedding in presentations.
