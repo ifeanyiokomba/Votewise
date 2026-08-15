@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { StatCard } from "@/components/shared/stat-card";
 import { ElectionShell } from "@/components/dashboard/election-shell";
 import { VoteTimeline } from "@/components/dashboard/vote-timeline";
+import { DemographicsPanel, type DemographicsData } from "@/components/dashboard/demographics-panel";
 import { ErrorState } from "@/components/dashboard/dashboard-skeleton";
 import { apiFetch } from "@/lib/api-fetch";
 import {
@@ -55,6 +56,7 @@ interface AnalyticsResponse {
   stats: ElectionStats;
   timeline: TimelinePoint[];
   results: unknown;
+  demographics: DemographicsData;
 }
 
 interface AuditResponse {
@@ -288,6 +290,11 @@ export default function ElectionOverviewPage({
               </CardContent>
             </Card>
           </div>
+
+          {/* Demographics */}
+          {analytics.demographics && (
+            <DemographicsPanel demographics={analytics.demographics} />
+          )}
         </div>
       )}
     </ElectionShell>

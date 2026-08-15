@@ -64,8 +64,8 @@ export function ElectionCard({ election, index = 0 }: ElectionCardProps) {
     >
       <Card
         className={cn(
-          "group h-full overflow-hidden transition-all hover:shadow-md",
-          isLive && "border-primary/40 shadow-sm"
+          "group h-full overflow-hidden transition-all hover-lift hover:shadow-md",
+          isLive && "border-primary/40 shadow-sm glow-primary"
         )}
       >
         <CardContent className="flex h-full flex-col gap-4 p-5">

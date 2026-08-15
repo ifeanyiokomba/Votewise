@@ -16,7 +16,7 @@ import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { apiFetch } from "@/lib/api-fetch";
 import { cn, initials } from "@/lib/utils";
 import { toast } from "sonner";
-import { Bell, LogOut, Menu, Settings, User } from "lucide-react";
+import { Bell, LogOut, Menu, Settings, User, Search } from "lucide-react";
 import Link from "next/link";
 import type { UserDTO } from "./types";
 
@@ -25,6 +25,7 @@ interface AppTopbarProps {
   pageTitle: string;
   onOpenSidebar: () => void;
   unreadNotifications?: number;
+  onOpenCommand?: () => void;
   className?: string;
 }
 
@@ -44,6 +45,7 @@ export function AppTopbar({
   pageTitle,
   onOpenSidebar,
   unreadNotifications = 0,
+  onOpenCommand,
   className,
 }: AppTopbarProps) {
   const router = useRouter();
@@ -89,6 +91,21 @@ export function AppTopbar({
       </div>
 
       <div className="flex items-center gap-1">
+        {onOpenCommand && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onOpenCommand}
+            className="hidden items-center gap-2 rounded-lg border bg-muted/40 px-3 text-xs text-muted-foreground transition-colors hover:bg-muted md:flex"
+            aria-label="Search (Cmd+K)"
+          >
+            <Search className="h-3.5 w-3.5" />
+            <span>Search…</span>
+            <kbd className="ml-2 rounded border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+              ⌘K
+            </kbd>
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="icon"

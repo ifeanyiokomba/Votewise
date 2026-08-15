@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { AppSidebar } from "./app-sidebar";
 import { AppTopbar } from "./app-topbar";
 import { CreateElectionDialog } from "./create-election-dialog";
+import { CommandPalette } from "./command-palette";
 import {
   Sheet,
   SheetContent,
@@ -26,6 +27,7 @@ interface DashboardShellProps {
 const DEFAULT_TITLES: Record<string, string> = {
   "/dashboard": "Overview",
   "/dashboard/elections": "Elections",
+  "/dashboard/voters": "Voters",
   "/dashboard/support": "Support",
   "/dashboard/audit": "Audit Log",
   "/dashboard/security": "Security",
@@ -50,6 +52,7 @@ export function DashboardShell({
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [cmdOpen, setCmdOpen] = useState(false);
   const [unread, setUnread] = useState(0);
 
   useEffect(() => {
@@ -70,6 +73,18 @@ export function DashboardShell({
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  // Cmd+K / Ctrl+K to open command palette
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setCmdOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
   }, []);
 
   const pageTitle = title ?? resolveTitle(pathname);
@@ -114,6 +129,7 @@ export function DashboardShell({
             pageTitle={pageTitle}
             onOpenSidebar={() => setMobileOpen(true)}
             unreadNotifications={unread}
+            onOpenCommand={() => setCmdOpen(true)}
           />
           <main className="flex-1">{children}</main>
         </div>
@@ -137,6 +153,13 @@ export function DashboardShell({
           setCreateOpen(false);
           router.push(`/dashboard/elections/${electionId}`);
         }}
+      />
+
+      <CommandPalette
+        open={cmdOpen}
+        onOpenChange={setCmdOpen}
+        isPlatformAdmin={user?.role === "PLATFORM_ADMIN"}
+        onCreateElection={() => setCreateOpen(true)}
       />
     </div>
   );

@@ -134,27 +134,40 @@ export default function OverviewPage() {
 
   return (
     <div className="space-y-8 p-4 sm:p-6 lg:p-8">
-      {/* Greeting */}
+      {/* Greeting — gradient accent panel */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="flex flex-wrap items-end justify-between gap-3"
+        className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/10 via-accent/40 to-background p-6 sm:p-8"
       >
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            {orgName}
-          </p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
-            Welcome back, {firstName}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Here&apos;s what&apos;s happening across your elections today.
-          </p>
+        <div className="absolute right-0 top-0 h-40 w-40 -translate-y-12 translate-x-12 rounded-full bg-primary/10 blur-3xl" />
+        <div className="absolute bottom-0 left-1/3 h-32 w-32 translate-y-8 rounded-full bg-chart-2/10 blur-3xl" />
+        <div className="relative flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                {orgName}
+              </p>
+              <span className="flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="absolute inline-flex h-1.5 w-1.5 animate-ping rounded-full bg-emerald-500 opacity-75" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                </span>
+                All systems operational
+              </span>
+            </div>
+            <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
+              Welcome back, {firstName}
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Here&apos;s what&apos;s happening across your elections today.
+            </p>
+          </div>
+          <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary backdrop-blur-sm">
+            {TIER_LABELS[tier] ?? tier} plan
+          </Badge>
         </div>
-        <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">
-          {TIER_LABELS[tier] ?? tier} plan
-        </Badge>
       </motion.div>
 
       {/* Stat cards */}

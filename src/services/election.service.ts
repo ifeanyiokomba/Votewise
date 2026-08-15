@@ -36,7 +36,7 @@ export class ElectionService {
       orderBy: { createdAt: "desc" },
       include: {
         _count: {
-          select: { voters: true, positions: true, candidates: true },
+          select: { voters: true, positions: true, candidates: true, votes: true },
         },
       },
     });

@@ -30,6 +30,7 @@ import {
   CheckCircle2,
   Loader2,
   Send,
+  Download,
 } from "lucide-react";
 import { formatNumber, formatPercent } from "@/lib/utils";
 import type {
@@ -120,6 +121,53 @@ export default function ResultsPage({
     ["CLOSED", "RESULTS_REVIEW", "PUBLISHED"].includes(election.status);
   const isPublished = election?.status === "PUBLISHED";
 
+  function exportResultsCsv() {
+    if (!results) return;
+    const headers = [
+      "Position",
+      "Rank",
+      "Candidate",
+      "Votes",
+      "Percentage",
+      "Winner",
+    ];
+    const rows: string[][] = [];
+    for (const pos of results.positions) {
+      for (const cand of pos.candidates) {
+        rows.push([
+          pos.position.title,
+          String(cand.rank),
+          cand.name,
+          String(cand.voteCount),
+          `${cand.percentage.toFixed(1)}%`,
+          pos.winnerId === cand.id ? "Yes" : pos.isTie ? "Tie" : "No",
+        ]);
+      }
+    }
+    // Add summary rows
+    rows.push([]);
+    rows.push(["Election", election?.name ?? ""]);
+    rows.push(["Total Votes", String(results.totalVotes)]);
+    rows.push(["Total Voters", String(results.totalVoters)]);
+    rows.push(["Turnout", `${results.turnout.toFixed(1)}%`]);
+
+    const csv = [headers, ...rows]
+      .map((row) =>
+        row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")
+      )
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `votewise-results-${election?.name?.replace(/[^a-z0-9]/gi, "-").toLowerCase() ?? "election"}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Results exported", {
+      description: "CSV file downloaded with full position breakdown.",
+    });
+  }
+
   return (
     <ElectionShell electionId={electionId ?? ""} activeTab="results">
       <div className="space-y-4">
@@ -131,6 +179,11 @@ export default function ResultsPage({
             </p>
           </div>
           <div className="flex items-center gap-2">
+            {results && results.totalVotes > 0 && (
+              <Button onClick={exportResultsCsv} variant="outline" size="sm">
+                <Download className="h-4 w-4" /> Export CSV
+              </Button>
+            )}
             {isPublished ? (
               <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">
                 <Globe className="h-3 w-3" /> Published

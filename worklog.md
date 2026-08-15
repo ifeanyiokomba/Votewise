@@ -357,3 +357,78 @@ Stage Summary:
   * Multi-tenant subdomain resolution (`tenant.ts`) is implemented but single-port sandbox serves one org; enable subdomain routing in production.
   * Add automated tests (vitest) for vote.service, result.service, election transitions, otp.service.
   * Add MFA for admins, IP allow-listing, and structured log shipping to an observability platform.
+
+---
+Task ID: CRON-1 (webDevReview round 1)
+Agent: Lead (orchestrator) — cron-triggered continuous review
+Task: Assess project status, QA test via agent-browser, fix bugs, add new features, improve styling.
+
+## Current Project Status Assessment
+- Votewise is fully functional end-to-end. Both services (Next.js :3000 + socket.io monitor :3003) running cleanly.
+- `bun run lint` passes with 0 errors, 0 warnings.
+- No runtime errors in dev.log.
+- All major flows verified: landing → auth → dashboard → election command center → voter flow (lookup → OTP → ballot → receipt) → public results → ballot verification.
+
+## Bugs Found & Fixed
+1. **Elections list missing vote counts** — `ElectionService.listForOrg` didn't include `votes` in `_count.select`, so all election cards showed "0 Votes" even for elections with votes. **Fixed**: added `votes: true` to the `_count.select` in `src/services/election.service.ts`. Verified: cards now show "6 Votes" (published) and "3 Votes" (LIVE).
+2. **"Voters soon" disabled sidebar link** — the sidebar had a "coming soon" disabled Voters link pointing to `/dashboard/elections`. **Fixed**: created a proper `/dashboard/voters` cross-election voter directory page with search, filters, CSV export, and per-voter verified/voted status. Updated `nav-config.ts` to remove `comingSoon: true` and point to the new page.
+3. **Election audit tab too noisy** — the audit API used `OR: [{ organizationId }, { resourceId: id }]` which pulled in ALL org events (including every "Signed in"). **Fixed**: rewrote `GET /api/elections/[id]/audit` to prioritize election-specific events (matching `resourceId` or known election-linked resources) and only include high-signal org events (ELECTION_CREATE, VOTE_CAST, RESULT_PUBLISHED, etc.) for context. Deduped by ID.
+
+## New Features Added
+1. **Cross-election Voters Directory** (`/dashboard/voters`):
+   - New API: `GET /api/admin/voters?search=&electionId=&eligibility=` — returns all voters across the org with enriched `isVerified` + `hasVoted` status, election context, and verification/session counts.
+   - Full page with: 4 StatCards (Total/Verified/Voted/Eligible), debounced search, election filter dropdown, eligibility filter, responsive table (avatar, voter name, election with status badge, department/level, masked email/phone, eligible/verified/voted indicators), CSV export, and "manage in election" quick-jump button per row.
+   - Replaces the disabled "Voters soon" sidebar link.
+
+2. **Command Palette (⌘K / Ctrl+K)**:
+   - New component: `src/components/dashboard/command-palette.tsx` using shadcn `CommandDialog`.
+   - Keyboard shortcut wired in `dashboard-shell.tsx` via `window.addEventListener("keydown")`.
+   - Search bar button added to `app-topbar.tsx` with `⌘K` kbd hint.
+   - Supports: all navigation pages, "Create New Election" action, platform-admin section (conditional), quick links (home, pricing), and "Sign out" account action.
+
+3. **Results CSV Export**:
+   - Added "Export CSV" button to the election results tab (`src/app/dashboard/elections/[id]/results/page.tsx`).
+   - Generates a CSV with Position, Rank, Candidate, Votes, Percentage, Winner columns + summary rows (election name, total votes, total voters, turnout).
+   - Triggers a browser download with a sanitized filename.
+
+4. **Voter Demographic Analytics**:
+   - Enhanced `GET /api/elections/[id]/analytics` to return a `demographics` object with `byFaculty`, `byDepartment`, `byLevel` breakdowns — each with total/verified/voted counts. No individual voter data exposed.
+   - New component: `src/components/dashboard/demographics-panel.tsx` — renders a 3-column card with per-group progress bars (total width + voted overlay), turnout percentage, and "more" overflow indicator.
+   - Injected into the election overview tab below the vote timeline + audit log grid.
+
+## Styling Improvements
+1. **Dashboard overview gradient header** — replaced the flat greeting with a gradient panel (`from-primary/10 via-accent/40 to-background`) with blurred decorative orbs and an "All systems operational" live pulse indicator.
+2. **New CSS utility classes** in `globals.css`:
+   - `glass-card` — backdrop-blur glass-morphism effect.
+   - `shimmer` — animated loading shimmer.
+   - `hover-lift` — translateY(-2px) + shadow on hover.
+   - `gradient-border` — gradient border accent via mask compositing.
+   - `glow-primary` — subtle primary-colored glow box-shadow.
+   - Enhanced `*:focus-visible` outline.
+3. **Election card hover-lift** — added `hover-lift` class to election cards for a subtle lift + shadow on hover. LIVE elections now get `glow-primary` for a premium active glow.
+
+## Verification Results
+- `bun run lint`: 0 errors, 0 warnings.
+- agent-browser end-to-end:
+  - ✅ Voters directory page loads with 20 voters, 2 verified, 1 voted.
+  - ✅ Command palette opens with ⌘K, shows all nav items + actions.
+  - ✅ Election cards show correct vote counts (6, 0, 3).
+  - ✅ Demographics panel visible in election overview (Faculty/Department/Level breakdowns).
+  - ✅ Results CSV export button visible on results tab.
+  - ✅ Gradient header with "All systems operational" pulse on dashboard overview.
+  - ✅ No console errors on any tested page.
+
+## Files Modified/Created
+- **Modified**: `src/services/election.service.ts` (votes count fix), `src/app/api/elections/[id]/audit/route.ts` (election-specific audit), `src/app/api/elections/[id]/analytics/route.ts` (demographics), `src/components/dashboard/nav-config.ts` (voters link enabled), `src/components/dashboard/dashboard-shell.tsx` (command palette + voters title), `src/components/dashboard/app-topbar.tsx` (search button), `src/app/dashboard/page.tsx` (gradient header), `src/app/dashboard/elections/[id]/page.tsx` (demographics panel), `src/app/dashboard/elections/[id]/results/page.tsx` (CSV export), `src/components/dashboard/election-card.tsx` (hover-lift), `src/app/globals.css` (new CSS utilities).
+- **Created**: `src/app/api/admin/voters/route.ts`, `src/app/dashboard/voters/page.tsx`, `src/components/dashboard/command-palette.tsx`, `src/components/dashboard/demographics-panel.tsx`.
+
+## Unresolved Issues / Risks / Next-Phase Recommendations
+- **No real SMS/email/WhatsApp provider** — OTP delivered via in-app Notification log + devCode hint. Wire Resend/Termii for production.
+- **Payments simulated** — no Paystack webhook. Add real webhook verification.
+- **No automated tests** — recommend adding vitest for vote.service, result.service, election transitions, otp.service.
+- **No MFA for admins** — recommend adding TOTP-based MFA for ORG_OWNER/ORG_ADMIN/PLATFORM_ADMIN roles.
+- **Subdomain multi-tenancy** — `tenant.ts` resolution exists but single-port sandbox serves one org. Enable in production.
+- **Observer management UI** — the schema supports Observers but there's no UI to assign/manage them per election. Recommend adding an Observers tab to the election command center.
+- **Election duplication** — no "Duplicate election" feature to clone setup. Would speed up recurring elections.
+- **Notification preferences** — admins can't configure which notifications they receive. Recommend a preferences panel in Settings.
+- **Real-time dashboard** — the live monitor badge is in the election header, but the dashboard overview doesn't show real-time updates. Could add a live activity feed via socket.io.
