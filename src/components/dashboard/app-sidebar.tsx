@@ -14,7 +14,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { Plus, Building2 } from "lucide-react";
+import { Plus, Building2, Sparkles } from "lucide-react";
 import { PRIMARY_NAV, PLATFORM_NAV, type NavItem } from "./nav-config";
 import type { OrganizationDTO, UserDTO } from "./types";
 
@@ -146,9 +146,13 @@ export function AppSidebar({
 
         <div className="px-4 py-4">
           {organization ? (
-            <div className="rounded-lg border bg-background/60 p-3">
+            <Link
+              href="/dashboard/settings"
+              onClick={onNavigate}
+              className="group block rounded-lg border bg-gradient-to-br from-primary/5 via-background to-background p-3 transition-all hover:border-primary/30 hover:shadow-sm"
+            >
               <div className="flex items-center gap-2">
-                <div className="grid h-8 w-8 place-items-center rounded-md bg-primary/10 text-primary">
+                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-primary/10 text-primary ring-1 ring-primary/10 transition-colors group-hover:bg-primary/15">
                   <Building2 className="h-4 w-4" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -160,14 +164,15 @@ export function AppSidebar({
                 <Badge
                   variant="outline"
                   className={cn(
-                    "w-full justify-center text-[10px] uppercase tracking-wide",
+                    "w-full justify-center gap-1.5 text-[10px] uppercase tracking-wide",
                     "border-primary/30 bg-primary/10 text-primary"
                   )}
                 >
+                  <Sparkles className="h-2.5 w-2.5" />
                   {tier} plan
                 </Badge>
               </div>
-            </div>
+            </Link>
           ) : (
             <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
               No organization attached.

@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/api-fetch";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -22,8 +23,10 @@ import {
   Calendar,
   ArrowRight,
   Activity,
+  Download,
 } from "lucide-react";
 import { cn, formatNumber, formatPercent, formatDate } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface ComparisonEntry {
   id: string;
@@ -130,14 +133,71 @@ export default function ComparePage() {
   const maxTurnout = Math.max(...trend.map((t) => t.turnout), 100);
   const maxVoters = Math.max(...trend.map((t) => t.voters), 1);
 
+  function exportCsv() {
+    if (elections.length === 0) {
+      toast.error("Nothing to export");
+      return;
+    }
+    const headers = [
+      "Election",
+      "Status",
+      "Type",
+      "Voters",
+      "Votes",
+      "Positions",
+      "Candidates",
+      "Turnout %",
+      "Start Time",
+      "End Time",
+    ];
+    const rows = elections.map((e) => [
+      e.name,
+      e.status,
+      e.type,
+      String(e.voters),
+      String(e.votes),
+      String(e.positions),
+      String(e.candidates),
+      String(e.turnout),
+      e.startTime ? formatDate(e.startTime) : "",
+      e.endTime ? formatDate(e.endTime) : "",
+    ]);
+    // Add summary rows
+    rows.push([]);
+    rows.push(["SUMMARY"]);
+    rows.push(["Total Elections", String(totals.elections)]);
+    rows.push(["Total Voters", String(totals.totalVoters)]);
+    rows.push(["Total Votes", String(totals.totalVotes)]);
+    rows.push(["Average Turnout", `${totals.avgTurnout}%`]);
+
+    const csv = [headers, ...rows]
+      .map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `votewise-comparison-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Comparison exported", {
+      description: `${elections.length} elections downloaded as CSV.`,
+    });
+  }
+
   return (
     <div className="flex-1 space-y-6 p-4 md:p-6">
       <PageHeader
         eyebrow="Analytics"
         title="Election Comparison"
         description="Compare turnout, participation, and engagement across all your elections."
+        actions={
+          <Button onClick={exportCsv} variant="outline" size="sm" className="gap-2">
+            <Download className="h-4 w-4" />
+            Export CSV
+          </Button>
+        }
       />
-
       {/* Summary stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard

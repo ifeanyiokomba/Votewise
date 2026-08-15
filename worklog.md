@@ -823,3 +823,81 @@ Task: Assess project status, QA test via agent-browser, add new features, improv
 - **Election comparison export** — could add CSV/PDF export of the comparison table for reporting.
 - **Certificate verification API** — could add a public API to verify certificate authenticity by reference (currently the certificate page itself serves as verification).
 - **Cross-election voter deduplication** — the same voter may participate in multiple elections; could add a unified voter identity view.
+
+---
+Task ID: CRON-7 (webDevReview round 7)
+Agent: Lead (orchestrator) — cron-triggered continuous review
+Task: Assess project status, QA test via agent-browser, add new features, improve styling.
+
+## Current Project Status Assessment
+- Votewise is fully functional end-to-end. Three services running: Next.js (:3000), socket.io monitor (:3003), election scheduler (background).
+- `bun run lint` passes with 0 errors, 0 warnings.
+- No runtime errors in dev.log.
+- All major flows verified: landing → auth → dashboard (with leaderboard + engagement scoring) → election command center → voter flow → public results → observer view → settings → PDF report → compare (with CSV export) → certificate → verify-ballot (with certificate link).
+
+## Bugs Found & Fixed
+- No bugs found during this round's QA. All flows from round 6 remain working correctly.
+
+## New Features Added
+
+### 1. Voter Engagement Scoring (Gamification)
+- **New API**: `GET /api/admin/engagement-scoring` — computes per-voter engagement scores:
+  - Verified (OTP confirmed): +30 points
+  - Voted (ballot cast): +50 points
+  - Speed bonus (voted within 30 min of verification): +20 points
+  - Returns a leaderboard (top 50), aggregate summary (total voters, verified, voted, avg score, top score, engagement rate), and score distribution buckets (No activity / Verified / Voted / Speed voter).
+- **New component**: `src/components/dashboard/engagement-scoring-card.tsx` — premium card with:
+  - 4-tile summary strip (voters, verified, voted, top score) with icons.
+  - Score distribution progress bars (4 buckets).
+  - Ranked leaderboard with medal emojis (🥇🥈🥉) for top 3, numbered badges for the rest.
+  - Per-voter: tier icon (Speed Voter/Active Voter/Verified/Beginner), masked email, election name, verified/voted badges, score + tier label.
+  - Scrollable list with framer-motion staggered entrance.
+- Injected into the dashboard overview in a 2-column grid alongside the turnout leaderboard.
+- Verified: shows 20 voters, 2 verified, 1 voted, 100 top score (Speed Voter), with gold/silver medals.
+
+### 2. Election Comparison CSV Export
+- Added `exportCsv` function to the compare page (`/dashboard/compare`) that generates a CSV with columns: Election, Status, Type, Voters, Votes, Positions, Candidates, Turnout %, Start/End Time + summary rows (totals, average turnout).
+- "Export CSV" button added to the PageHeader actions area.
+- Verified: "Export CSV" button visible on compare page.
+
+### 3. Public Certificate Verification API
+- **New API**: `POST /api/public/verify-certificate` — given a receipt reference, verifies ballot receipt and returns certificate-safe metadata (election name, org name, issue date, masked voter email). Never exposes voter identity or ballot choices.
+- Added `/api/public/verify-certificate` to public routes in `tenant.ts`.
+- Enhanced the public verify-ballot page: when a ballot is verified, a "View participation certificate" button appears that links to `/certificate/{reference}` in a new tab.
+- Verified: "View participation certificate" link visible on verified ballot page.
+
+## Styling Improvements
+
+### Dashboard sidebar (org card)
+- The organization card at the bottom of the sidebar is now a clickable link to `/dashboard/settings` (with `hover:border-primary/30 hover:shadow-sm` effect).
+- Added a gradient background (`from-primary/5 via-background to-background`).
+- Org icon now has `ring-1 ring-primary/10` and `group-hover:bg-primary/15` transition.
+- Plan badge now includes a `Sparkles` icon for a premium feel.
+
+## Verification Results
+- `bun run lint`: 0 errors, 0 warnings.
+- agent-browser end-to-end:
+  - ✅ Engagement scoring: visible on dashboard with 20 voters, 2 verified, 1 voted, 100 top score, medals, tier labels, distribution bars.
+  - ✅ Compare CSV export: "Export CSV" button visible on compare page.
+  - ✅ Verify-ballot certificate link: "View participation certificate" button appears after ballot verification.
+  - ✅ Sidebar org card: clickable, gradient, Sparkles icon in plan badge.
+  - ✅ No console errors on any tested page.
+
+## Files Modified/Created
+- **Created**: `src/app/api/admin/engagement-scoring/route.ts`, `src/components/dashboard/engagement-scoring-card.tsx`, `src/app/api/public/verify-certificate/route.ts`.
+- **Modified**: `src/app/dashboard/page.tsx` (added EngagementScoringCard in 2-col grid), `src/app/dashboard/compare/page.tsx` (CSV export function + Export CSV button + Download/Toast/Button imports), `src/app/(public)/verify-ballot/page.tsx` (+View participation certificate link + Award icon), `src/components/dashboard/app-sidebar.tsx` (clickable gradient org card + Sparkles icon), `src/lib/tenant.ts` (+`/api/public/verify-certificate`).
+
+## Unresolved Issues / Risks / Next-Phase Recommendations
+- **No real SMS/email/WhatsApp provider** — OTP delivered via in-app Notification log + devCode hint. Wire Resend/Termii for production.
+- **Payments simulated** — no Paystack webhook. Add real webhook verification.
+- **No automated tests** — recommend adding vitest for vote.service, result.service, election transitions, otp.service, engagement scoring API, compare API, and certificate verification API.
+- **No MFA for admins** — recommend adding TOTP-based MFA for ORG_OWNER/ORG_ADMIN/PLATFORM_ADMIN roles.
+- **Subdomain multi-tenancy** — `tenant.ts` resolution exists but single-port sandbox serves one org. Enable in production.
+- **Observer authentication** — the observer view is currently public. Add token-based observer authentication with signed links and expiry.
+- **Scheduler restart-on-reboot** — the scheduler runs as a background process; add it to a process manager or systemd for production reliability.
+- **Real-time auto-transition notifications** — when the scheduler transitions an election, it should trigger notifications based on saved preferences.
+- **Cross-election voter deduplication** — the same voter may participate in multiple elections; could add a unified voter identity view linking voters across elections by email/phone.
+- **Engagement scoring history** — currently scores are computed on-the-fly; could persist historical scores over time to track engagement trends.
+- **Leaderboard time-range filter** — could add a time-range selector (all-time / this month / this week) to the engagement leaderboard.
+- **Certificate QR code** — could add a QR code to the certificate that links to the public verification page.
+- **Comparison PDF export** — currently CSV only; could add a print-friendly PDF report for the comparison page.

@@ -40,6 +40,7 @@ const PUBLIC_ROUTES = [
   "/api/webhooks",
   "/api/health",
   "/api/public",
+  "/api/public/verify-certificate",
   "/api/voter/verify",
   "/api/voter/vote",
   "/api/voter/vote/cast",

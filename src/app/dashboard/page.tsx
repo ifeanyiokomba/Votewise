@@ -25,6 +25,7 @@ import {
 import { ElectionCard } from "@/components/dashboard/election-card";
 import { LiveActivityFeed } from "@/components/dashboard/live-activity-feed";
 import { EngagementLeaderboard } from "@/components/dashboard/engagement-leaderboard";
+import { EngagementScoringCard } from "@/components/dashboard/engagement-scoring-card";
 import { apiFetch } from "@/lib/api-fetch";
 import { cn, formatNumber, formatRelative, formatPercent } from "@/lib/utils";
 import {
@@ -399,8 +400,11 @@ export default function OverviewPage() {
         </aside>
       </div>
 
-      {/* Turnout leaderboard */}
-      <EngagementLeaderboard />
+      {/* Engagement analytics */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <EngagementLeaderboard />
+        <EngagementScoringCard />
+      </div>
     </div>
   );
 }

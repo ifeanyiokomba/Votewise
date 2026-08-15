@@ -16,6 +16,7 @@ import {
   ReceiptText,
   ArrowRight,
   KeyRound,
+  Award,
 } from "lucide-react";
 
 import { apiFetch } from "@/lib/api-fetch";
@@ -276,6 +277,16 @@ function VerifyBallotInner() {
                         stored anonymously.
                       </p>
                     </div>
+                    <Button asChild variant="outline" size="sm" className="w-full gap-2">
+                      <a
+                        href={`/certificate/${encodeURIComponent(result.reference)}`}
+                        target="_blank"
+                        rel="noopener"
+                      >
+                        <Award className="size-4" />
+                        View participation certificate
+                      </a>
+                    </Button>
                   </>
                 )}
               </CardContent>
