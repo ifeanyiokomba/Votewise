@@ -28,6 +28,7 @@ import { EngagementLeaderboard } from "@/components/dashboard/engagement-leaderb
 import { EngagementScoringCard } from "@/components/dashboard/engagement-scoring-card";
 import { VoterBadgesCard } from "@/components/dashboard/voter-badges-card";
 import { PlatformAdminDashboard } from "@/components/dashboard/platform-admin-dashboard";
+import { LiveElectionCards } from "@/components/dashboard/live-election-cards";
 import { apiFetch } from "@/lib/api-fetch";
 import { cn, formatNumber, formatRelative, formatPercent } from "@/lib/utils";
 import {
@@ -285,11 +286,14 @@ export default function OverviewPage() {
         </Card>
       )}
 
+      {/* Live elections with candidate headshots + real-time results */}
+      <LiveElectionCards />
+
       {/* Active elections + side panels */}
       <div className="grid gap-6 lg:grid-cols-3">
         <section className="lg:col-span-2">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-semibold tracking-tight">Active elections</h2>
+            <h2 className="text-lg font-semibold tracking-tight">All elections</h2>
             <Button asChild variant="ghost" size="sm">
               <Link href="/dashboard/elections">
                 View all <ArrowRight className="h-3.5 w-3.5" />
@@ -302,7 +306,7 @@ export default function OverviewPage() {
                 <ElectionCardSkeleton key={i} />
               ))}
             </div>
-          ) : activeElections.length === 0 ? (
+          ) : activeElections.length === 0 && elections.length === 0 ? (
             <EmptyState
               title="No active elections"
               description="Create an election to get it ready for voting. You can import voters and add candidates next."
@@ -317,7 +321,7 @@ export default function OverviewPage() {
             />
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
-              {activeElections.map((el, i) => (
+              {elections.slice(0, 4).map((el, i) => (
                 <ElectionCard key={el.id} election={el} index={i} />
               ))}
             </div>
