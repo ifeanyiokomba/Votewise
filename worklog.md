@@ -1529,3 +1529,56 @@ Created 4 reusable animated components:
 ## Files Modified/Created
 - **Created**: `src/components/shared/animated-backgrounds.tsx`
 - **Modified**: `src/app/globals.css` (15+ new animation keyframes + utility classes), `src/app/page.tsx` (hero with animated backgrounds, CountUpNumber, VoteCountingAnimation)
+
+---
+Task ID: CRON-17 (webDevReview round 17 — Database migration, members, support chat, GitHub push)
+Agent: Lead (orchestrator)
+Task: Switch to PostgreSQL/Neon, add org members, build AI support chat, push to GitHub.
+
+## Completed Work
+
+### 1. Database Migration: SQLite → PostgreSQL (Neon)
+- Updated `prisma/schema.prisma` from `provider = "sqlite"` to `provider = "postgresql"`
+- Updated `.env` with Neon connection string: `postgresql://neondb_owner:***@ep-round-feather-b14rsxft-pooler.c-5.eu-central-1.aws.neon.tech/neondb?sslmode=require`
+- Pushed schema to Neon: `bun run db:push` → success
+- Seeded Neon database with demo data (platform admin, org owner, 3 elections, voters, etc.)
+- All existing code works with PostgreSQL (Prisma client handles the abstraction)
+
+### 2. Add/Remove Org Members Interface
+- **New API**: `POST /api/admin/users/invite` — creates a new user account linked to the org with a specified role (ORG_ADMIN, ELECTION_MANAGER, ELECTION_OFFICER, OBSERVER, AUDITOR, VOTER). Generates a temporary password, audit logs the action.
+- **Enhanced users page**: Added "Add member" button to the PageHeader. Opens a dialog with name, email, and role selector. On submit, calls the invite API and refreshes the list. Success toast confirms the addition.
+- Existing users page already supports role changes (Select) and active/inactive toggle (Switch) via `PATCH /api/admin/users/[id]`.
+
+### 3. Floating AI Support Chat Widget
+- **New API**: `POST /api/support/ai-chat` — uses `z-ai-web-dev-sdk` (LLM) to power a conversational support assistant. System prompt guides the AI to:
+  - Greet the user and ask about their concern
+  - Collect identifying details (voting ID, matric number, email)
+  - Provide helpful information about common issues (OTP, voting, results)
+  - Escalate to a support ticket if needed
+  - Includes election context if `electionId` is provided
+- **New API**: `POST /api/support/upload` — file upload for support chat (images, PDFs, docs). Saves to `public/uploads/support/`.
+- **New component**: `<SupportChatWidget />` — a floating chat button (bottom-right) that expands into a chat panel:
+  - AI-powered conversation with typing indicators
+  - File upload button (paperclip) for sharing screenshots/docs
+  - Camera button for taking live photos (`capture="environment"`)
+  - Message bubbles with user/assistant avatars
+  - Auto-scroll, loading states, error handling
+  - Animated entrance/exit via framer-motion
+- Added to both the dashboard layout (for org users) and the voter layout (for voters)
+
+### 4. GitHub Repository Push
+- Set git remote to `https://github.com/ifeanyiokomba/votewise.git` using the provided PAT
+- Added `.env`, `*.db`, `public/uploads/`, `node_modules/`, `.next/` to `.gitignore`
+- Committed all changes with comprehensive commit message
+- Force-pushed to `main` branch (replaced old code)
+- Repository now contains the full Votewise codebase
+
+## Note on Subdomains & Custom Domains
+The subdomain resolution logic (`src/lib/tenant.ts`) already exists and can resolve `orgslug.votewise.com.ng` and `admin.votewise.com.ng`. However, actual subdomain routing requires DNS configuration at the domain registrar/Vercel level — this is an infrastructure task that cannot be done from the codebase alone. The code is ready for when DNS is configured.
+
+## Note on Vercel Redeployment
+The GitHub repo is now updated. If Vercel is connected to this repo, it will automatically trigger a redeployment. The environment variables (DATABASE_URL, SESSION_SECRET, etc.) need to be set in the Vercel project settings to match the `.env` file.
+
+## Files Created/Modified
+- **Created**: `src/app/api/admin/users/invite/route.ts`, `src/app/api/support/ai-chat/route.ts`, `src/app/api/support/upload/route.ts`, `src/components/shared/support-chat-widget.tsx`
+- **Modified**: `prisma/schema.prisma` (PostgreSQL), `.env` (Neon connection), `src/app/dashboard/users/page.tsx` (invite dialog), `src/components/dashboard/dashboard-shell.tsx` (support chat), `src/app/(voter)/layout.tsx` (support chat for voters)
