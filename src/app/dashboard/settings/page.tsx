@@ -31,6 +31,7 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { NotificationPreferencesCard } from "@/components/dashboard/notification-preferences-card";
 import { ErrorState } from "@/components/dashboard/dashboard-skeleton";
 import { Logo } from "@/components/shared/logo";
+import { LogoUploader } from "@/components/shared/logo-uploader";
 import { apiFetch } from "@/lib/api-fetch";
 import { toast } from "sonner";
 import { formatDate, initials } from "@/lib/utils";
@@ -272,36 +273,12 @@ export default function SettingsPage() {
           </CardHeader>
           <form onSubmit={onSave}>
             <CardContent className="space-y-4">
-              <div className="flex flex-wrap items-start gap-4">
-                <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-xl border bg-muted">
-                  {form.logo ? (
-                    <img
-                      src={form.logo}
-                      alt={`${form.name} logo`}
-                      className="size-full object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = "none";
-                      }}
-                    />
-                  ) : (
-                    <span className="text-2xl font-bold text-primary">
-                      {initials(form.name || organization.name)}
-                    </span>
-                  )}
-                </div>
-                <div className="min-w-[200px] flex-1 space-y-1.5">
-                  <Label htmlFor="logo">Logo URL</Label>
-                  <Input
-                    id="logo"
-                    value={form.logo}
-                    onChange={(e) => update("logo", e.target.value)}
-                    placeholder="https://your-logo-url.png"
-                  />
-                  <p className="text-[11px] text-muted-foreground">
-                    Square PNG/SVG works best. Falls back to initials.
-                  </p>
-                </div>
-              </div>
+              {/* Logo uploader */}
+              <LogoUploader
+                currentLogo={form.logo || null}
+                orgName={form.name || organization?.name || "Organization"}
+                onUploaded={(url) => update("logo", url)}
+              />
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">

@@ -152,8 +152,12 @@ export function AppSidebar({
               className="group block rounded-lg border bg-gradient-to-br from-primary/5 via-background to-background p-3 transition-all hover:border-primary/30 hover:shadow-sm"
             >
               <div className="flex items-center gap-2">
-                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-primary/10 text-primary ring-1 ring-primary/10 transition-colors group-hover:bg-primary/15">
-                  <Building2 className="h-4 w-4" />
+                <div className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-md bg-primary/10 text-primary ring-1 ring-primary/10 transition-colors group-hover:bg-primary/15">
+                  {organization.logo ? (
+                    <img src={organization.logo} alt={organization.name} className="h-full w-full object-contain" />
+                  ) : (
+                    <Building2 className="h-4 w-4" />
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{organization.name}</p>
