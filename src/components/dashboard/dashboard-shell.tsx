@@ -139,7 +139,7 @@ export function DashboardShell({
 
       <footer className="mt-auto border-t bg-background px-4 py-4 text-center text-xs text-muted-foreground sm:px-6">
         <p>
-          © {new Date().getFullYear()} Votewise · A product of Okomba Inc.
+          © {new Date().getFullYear()} Votewise · A product of Okomba Analytics.
           {user ? (
             <span className="ml-2 hidden sm:inline">
               · Signed in as <span className="font-medium text-foreground">{user.email}</span>

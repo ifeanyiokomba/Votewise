@@ -173,7 +173,7 @@ ${parsed.message ? `Message from org: ${parsed.message}` : ""}
 5. The org will receive DNS instructions automatically upon approval
 
 — Votewise Platform
-A product of Okomba Inc.`;
+A product of Okomba Analytics.`;
 
     const notif = await NotificationService.queue({
       type: "EMAIL",

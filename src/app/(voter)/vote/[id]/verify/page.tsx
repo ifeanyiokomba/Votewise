@@ -147,7 +147,7 @@ function VerifyInner() {
       setError(null);
       const res = await apiFetch<SendResponse>("/api/voter/verify", {
         method: "POST",
-        body: JSON.stringify({ electionId, voterId }),
+        body: JSON.stringify({ electionId, voterId, channel }),
       });
       // Always clear the sending state once the request resolves, so the
       // silent mount resend doesn't leave the page stuck on "Sending…".
@@ -186,7 +186,7 @@ function VerifyInner() {
       startResendCountdown();
       if (!silent) toast.success("Code sent", { description: "Check your inbox or messages." });
     },
-    [voterId, electionId, router, startResendCountdown]
+    [voterId, electionId, router, startResendCountdown, channel]
   );
 
   // (Re)send OTP on mount so this page is self-sufficient for QA.
@@ -425,6 +425,37 @@ function VerifyInner() {
                     {resendIn > 0 ? `Resend in ${resendIn}s` : "Resend code"}
                   </button>
                 </div>
+
+                {/* Channel switcher — voter can choose different channel for resend */}
+                {resendIn === 0 && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>Resend via:</span>
+                    <button
+                      type="button"
+                      onClick={() => { setChannel("EMAIL"); void sendOtp(false); }}
+                      disabled={verifying}
+                      className="rounded-md border px-2 py-0.5 font-medium text-primary hover:bg-primary/5 disabled:opacity-50"
+                    >
+                      Email
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setChannel("SMS"); void sendOtp(false); }}
+                      disabled={verifying}
+                      className="rounded-md border px-2 py-0.5 font-medium text-primary hover:bg-primary/5 disabled:opacity-50"
+                    >
+                      SMS
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setChannel("WHATSAPP"); void sendOtp(false); }}
+                      disabled={verifying}
+                      className="rounded-md border px-2 py-0.5 font-medium text-primary hover:bg-primary/5 disabled:opacity-50"
+                    >
+                      WhatsApp
+                    </button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </motion.div>

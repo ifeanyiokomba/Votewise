@@ -350,7 +350,7 @@ export default function OrgHomePage() {
                 <div className="flex flex-col items-center justify-center gap-3 rounded-xl bg-muted/30 p-4">
                   <img src="/logo.svg" alt="Votewise" className="h-8 w-auto opacity-70" />
                   <p className="text-center text-xs text-muted-foreground">
-                    This election is powered by <strong>Votewise</strong> — a secure election platform by Okomba Inc.
+                    This election is powered by <strong>Votewise</strong> — built by Okomba Analytics.
                   </p>
                   <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                     <ShieldCheck className="h-3 w-3 text-primary" />
@@ -367,7 +367,7 @@ export default function OrgHomePage() {
       <footer className="border-t bg-secondary/30">
         <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-2 px-4 py-5 text-center text-xs text-muted-foreground sm:flex-row sm:text-left">
           <p>
-            © {new Date().getFullYear()} {org.name}. Powered by Votewise — a product of Okomba Inc.
+            © {new Date().getFullYear()} {org.name}. Powered by Votewise — built by Okomba Analytics.
           </p>
           <p className="flex items-center gap-1.5">
             <ShieldCheck className="size-3.5 text-primary" />

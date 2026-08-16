@@ -74,7 +74,7 @@ You can check if it's working by visiting: https://${org.domain}
 • If you need help, contact us at support@votewise.com.ng
 
 — Votewise Team
-A product of Okomba Inc.`;
+A product of Okomba Analytics.`;
 
       const notif = await NotificationService.queue({
         type: "EMAIL",

@@ -82,7 +82,7 @@ Please log in and change your password as soon as possible. You can do this from
 If you weren't expecting this invitation, you can safely ignore this email.
 
 — The Votewise Team
-  A product of Okomba Inc.`;
+  A product of Okomba Analytics.`;
 
     const notification = await NotificationService.queue({
       type: "EMAIL",

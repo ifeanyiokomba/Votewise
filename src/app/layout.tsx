@@ -32,6 +32,11 @@ export const metadata: Metadata = {
     "university elections",
   ],
   authors: [{ name: "Votewise" }],
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
   openGraph: {
     title: "Votewise — Secure Election Management",
     description:

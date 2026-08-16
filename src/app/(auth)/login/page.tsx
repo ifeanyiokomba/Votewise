@@ -274,7 +274,10 @@ function LoginForm() {
             </span>
           </div>
 
-          <GoogleAuthButton className="mt-4" />
+          {/* Google auth — not shown for platform admin login (admin.votewise.com.ng or ?admin=1) */}
+          {typeof window !== "undefined" && !window.location.hostname.startsWith("admin.") && !searchParams.get("admin") && (
+            <GoogleAuthButton className="mt-4" />
+          )}
 
           <Collapsible open={demoOpen} onOpenChange={setDemoOpen} className="mt-4">
             <CollapsibleTrigger asChild>
