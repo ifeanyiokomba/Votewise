@@ -74,6 +74,7 @@ export default function CandidatesPage({
   const [formPositionId, setFormPositionId] = useState("");
   const [formBio, setFormBio] = useState("");
   const [formManifesto, setFormManifesto] = useState("");
+  const [formPhoto, setFormPhoto] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -119,6 +120,7 @@ export default function CandidatesPage({
     setFormPositionId(positions[0]?.id ?? "");
     setFormBio("");
     setFormManifesto("");
+    setFormPhoto("");
     setEditOpen(true);
   }
 
@@ -128,6 +130,7 @@ export default function CandidatesPage({
     setFormPositionId(c.positionId);
     setFormBio(c.bio ?? "");
     setFormManifesto(c.manifesto ?? "");
+    setFormPhoto(c.photo ?? "");
     setEditOpen(true);
   }
 
@@ -147,6 +150,7 @@ export default function CandidatesPage({
       positionId: formPositionId,
       bio: formBio.trim() || null,
       manifesto: formManifesto.trim() || null,
+      photo: formPhoto.trim() || null,
     };
     const res = editing
       ? await apiFetch<{ candidate: CandidateDTO }>(
@@ -256,9 +260,13 @@ export default function CandidatesPage({
                   <CardContent className="flex h-full flex-col gap-3 p-4">
                     <div className="flex items-start gap-3">
                       <Avatar className="h-12 w-12 border">
-                        <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
-                          {initials(c.name)}
-                        </AvatarFallback>
+                        {c.photo ? (
+                          <img src={c.photo} alt={c.name} className="h-full w-full rounded-full object-cover" />
+                        ) : (
+                          <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
+                            {initials(c.name)}
+                          </AvatarFallback>
+                        )}
                       </Avatar>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold">{c.name}</p>
@@ -338,6 +346,30 @@ export default function CandidatesPage({
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
+            {/* Photo preview + URL input */}
+            <div className="flex items-center gap-4">
+              <Avatar className="h-16 w-16 border">
+                {formPhoto ? (
+                  <img src={formPhoto} alt="Preview" className="h-full w-full rounded-full object-cover" />
+                ) : (
+                  <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
+                    {formName ? initials(formName) : "?"}
+                  </AvatarFallback>
+                )}
+              </Avatar>
+              <div className="flex-1 space-y-1.5">
+                <Label htmlFor="cand-photo">Photo URL</Label>
+                <Input
+                  id="cand-photo"
+                  value={formPhoto}
+                  onChange={(e) => setFormPhoto(e.target.value)}
+                  placeholder="https://example.com/photo.jpg"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Paste a direct link to the candidate's headshot. Square images work best.
+                </p>
+              </div>
+            </div>
             <div className="grid gap-1.5">
               <Label htmlFor="cand-name">Name *</Label>
               <Input

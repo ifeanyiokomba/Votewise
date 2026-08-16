@@ -1,7 +1,7 @@
 "use client";
 
 import { cn, formatNumber } from "@/lib/utils";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { Crown, Users } from "lucide-react";
 import { initials } from "@/lib/utils";
@@ -39,6 +39,7 @@ export function ResultsBar({
       </div>
 
       <Avatar className="h-9 w-9 border">
+        {candidate.photo && <AvatarImage src={candidate.photo} alt="" />}
         <AvatarFallback
           className={cn(
             "text-xs font-semibold",
