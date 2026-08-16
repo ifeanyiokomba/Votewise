@@ -100,6 +100,45 @@ function pollAndTransition() {
   }
 
   const totalTransitions = dueToStart.length + dueToEnd.length + missedElections.length;
+
+  // ─── Auto-revert custom domains after election closes ───────────────
+  // When an election closes AND the org has an approved custom domain,
+  // check if the org has any remaining LIVE elections. If none, revert
+  // the custom domain back to the default subdomain — all data stays intact.
+  if (dueToEnd.length > 0 || missedElections.length > 0) {
+    const closedOrgIds = new Set<string>([
+      ...dueToEnd.map((e) => e.organizationId),
+      ...missedElections.map((e) => e.organizationId),
+    ]);
+
+    for (const orgId of closedOrgIds) {
+      try {
+        // Check if org has a custom domain approved
+        const org = sqlite
+          .query(`SELECT id, name, slug, domain, domainStatus FROM Organization WHERE id = ? AND domain IS NOT NULL AND domainStatus = 'approved'`)
+          .get(orgId) as { id: string; name: string; slug: string; domain: string; domainStatus: string } | null;
+
+        if (!org) continue;
+
+        // Check if org has any remaining LIVE elections
+        const liveCount = sqlite
+          .query(`SELECT COUNT(*) as c FROM Election WHERE organizationId = ? AND status = 'LIVE'`)
+          .get(orgId) as { c: number };
+
+        if (liveCount.c === 0) {
+          // No live elections left — revert custom domain
+          sqlite
+            .query(`UPDATE Organization SET domain = NULL, domainStatus = NULL, domainRequestedAt = NULL, domainApprovedAt = NULL, updatedAt = ? WHERE id = ?`)
+            .run(nowIso, org.id);
+
+          console.log(`[scheduler] Auto-reverted custom domain for ${org.name} (${org.domain}) → ${org.slug}.votewise.com.ng. All data intact.`);
+        }
+      } catch (e) {
+        console.error(`[scheduler] failed to check domain revert for org ${orgId}:`, e);
+      }
+    }
+  }
+
   if (totalTransitions > 0) {
     console.log(
       `[scheduler] ${nowIso} — ${totalTransitions} transition(s): ` +

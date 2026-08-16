@@ -190,6 +190,9 @@ model Organization {
   slug             String           @unique
   logo             String?
   domain           String?          @unique
+  domainStatus     String?          // "pending" | "approved" | "rejected" | null
+  domainRequestedAt DateTime?
+  domainApprovedAt  DateTime?
   description      String?
   contactInfo     String?
   branding         String?
