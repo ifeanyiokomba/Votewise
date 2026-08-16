@@ -2012,3 +2012,43 @@ Now urgent announcements (e.g. "voting extended 30 min") appear on every step of
 31. ✅ Platform admin dashboard fast loading (env fallback + cache + lazy load)
 
 **All 31 requirements now FULLY IMPLEMENTED.**
+
+---
+Task ID: DASHBOARD-OOM-FIX (dashboard page OOM fix)
+Agent: Lead (orchestrator)
+Task: Fix /dashboard not responding — OOM crash during Turbopack compilation.
+
+## Root Cause
+The `/dashboard` page imported ALL dashboard components at the top level — both platform admin AND org-specific. Even though a platform admin only renders `PlatformAdminDashboard`, Turbopack compiled the entire dependency graph (ElectionCard, LiveActivityFeed, EngagementLeaderboard, EngagementScoringCard, VoterBadgesCard, LiveElectionCards, etc.) on first access. This exceeded the 4GB sandbox RAM → OOM kill → "not responding".
+
+## Fix — Code-Split Dashboard by Role
+
+### 1. Extracted org dashboard into separate component
+- Created `src/components/dashboard/org-dashboard-content.tsx` — contains all org-specific UI (greeting, stats, quick actions, elections grid, side panels, engagement analytics, voter badges).
+- This component imports its own heavy dependencies (ElectionCard, LiveActivityFeed, etc.) — but only when it's actually rendered.
+
+### 2. Rewrote dashboard page with `next/dynamic`
+- `src/app/dashboard/page.tsx` now uses `next/dynamic` to lazy-load BOTH dashboards:
+  - `PlatformAdminDashboard` — only compiled when a platform admin visits
+  - `OrgDashboardContent` — only compiled when an org user visits
+- The page itself is now ultra-lightweight: just an auth check + conditional dynamic import.
+- `loading: () => <DashboardSkeleton />` shows a skeleton while the chunk loads.
+
+### Result
+- **Before**: Turbopack compiles ~15 components (both dashboards) on first /dashboard access → OOM kill
+- **After**: Turbopack compiles only 1 dashboard component (either platform or org) → no OOM
+- **Measured**: `/dashboard` returns 200 in 2.16s (first time, including compilation)
+- **Next.js stays alive** after the request (confirmed via ps aux)
+
+## Verification
+```
+POST /api/auth/login    200  (admin@votewise.com.ng / Ntaokomba91615)
+GET  /dashboard         200  time=2.16s
+```
+- `bun run lint`: 0 errors, 0 warnings ✅
+- All 4 services running (Next.js :3000, monitor :3003, support chat :3004, scheduler)
+- Next.js process alive after dashboard access ✅
+
+## Files Modified/Created
+- **Created**: `src/components/dashboard/org-dashboard-content.tsx` (extracted org dashboard UI)
+- **Modified**: `src/app/dashboard/page.tsx` (rewritten with next/dynamic lazy-loading)
