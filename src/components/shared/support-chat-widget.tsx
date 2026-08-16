@@ -516,7 +516,7 @@ export function SupportChatWidget({ electionId, voter }: SupportChatWidgetProps)
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-9 w-8 shrink-0"
+                  className="h-9 w-9 shrink-0"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploading}
                   aria-label="Attach file"
@@ -528,7 +528,7 @@ export function SupportChatWidget({ electionId, voter }: SupportChatWidgetProps)
                 <Button
                   variant="ghost"
                   size="icon"
-                  className={cn("h-9 w-8 shrink-0", photoRequested && "animate-pulse bg-blue-100 dark:bg-blue-950")}
+                  className={cn("h-9 w-9 shrink-0", photoRequested && "animate-pulse bg-blue-100 dark:bg-blue-950")}
                   onClick={() => cameraInputRef.current?.click()}
                   disabled={uploading}
                   aria-label="Take photo"

@@ -60,7 +60,12 @@ interface PreviewResponse {
   duplicates: number;
   invalid: number;
   preview: PreviewRow[];
-  errors: { row: number; message: string }[];
+  errors: { row: number; message: string; guidance?: string }[];
+  expectedFormat?: {
+    headers: string[];
+    example: string;
+    notes?: string;
+  };
 }
 
 interface ImportResponse extends ImportSummary {
@@ -358,14 +363,21 @@ export function VoterImportDialog({
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>{preview.errors.length} row(s) need attention</AlertTitle>
                 <AlertDescription>
-                  <ScrollArea className="max-h-32 scroll-area-custom">
-                    <ul className="mt-1 space-y-1 text-xs">
+                  <ScrollArea className="max-h-40 scroll-area-custom">
+                    <ul className="mt-1 space-y-2 text-xs">
                       {preview.errors.slice(0, 20).map((e, i) => (
-                        <li key={i} className="flex gap-2">
-                          <Badge variant="outline" className="h-5 shrink-0 px-1.5 text-[10px]">
-                            row {e.row}
-                          </Badge>
-                          <span>{e.message}</span>
+                        <li key={i} className="flex flex-col gap-1 rounded-md border bg-muted/30 p-2">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="h-5 shrink-0 px-1.5 text-[10px]">
+                              row {e.row}
+                            </Badge>
+                            <span className="font-medium">{e.message}</span>
+                          </div>
+                          {e.guidance && (
+                            <p className="pl-1 text-[11px] text-muted-foreground">
+                              <span className="font-semibold">Fix:</span> {e.guidance}
+                            </p>
+                          )}
                         </li>
                       ))}
                       {preview.errors.length > 20 && (
@@ -375,6 +387,20 @@ export function VoterImportDialog({
                       )}
                     </ul>
                   </ScrollArea>
+                  {preview.expectedFormat && (
+                    <div className="mt-3 rounded-md border bg-muted/20 p-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Expected CSV format
+                      </p>
+                      <p className="mt-1 font-mono text-[11px]">{preview.expectedFormat.headers.join(", ")}</p>
+                      <p className="mt-1.5 text-[11px] text-muted-foreground">
+                        Example: <span className="font-mono">{preview.expectedFormat.example}</span>
+                      </p>
+                      {preview.expectedFormat.notes && (
+                        <p className="mt-1 text-[11px] text-muted-foreground">{preview.expectedFormat.notes}</p>
+                      )}
+                    </div>
+                  )}
                 </AlertDescription>
               </Alert>
             )}

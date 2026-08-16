@@ -1,17 +1,18 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { isProtectedRoute, resolveTenantSlugFromHost } from "@/lib/tenant";
+import { isProtectedRoute, resolveTenantSlugFromHost, resolveTenantByCustomDomain } from "@/lib/tenant";
 
 const SESSION_COOKIE = "votewise_session";
 const MAIN_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? "votewise.com.ng";
 
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const host = request.headers.get("host") ?? "";
   const protocol = request.headers.get("x-forwarded-proto") ?? "https";
 
-  // ─── Subdomain routing ───────────────────────────────────────────
+  // ─── Subdomain + custom domain routing ───────────────────────────
   // unilag.votewise.com.ng → rewrite to /org/unilag
   // admin.votewise.com.ng → redirect to /login?admin=1
+  // elections.unilag.edu.ng (custom domain) → rewrite to /org/{slug}
   if (host !== MAIN_DOMAIN && host !== `www.${MAIN_DOMAIN}` && host !== "localhost:3000") {
     // Admin subdomain
     if (host === `admin.${MAIN_DOMAIN}`) {
@@ -32,14 +33,16 @@ export function proxy(request: NextRequest) {
     const slug = resolveTenantSlugFromHost(host);
     if (slug && !pathname.startsWith("/api/") && !pathname.startsWith("/_next/")) {
       // Rewrite unilag.votewise.com.ng/ → /org/unilag
-      // Rewrite unilag.votewise.com.ng/vote/xxx → /vote/xxx (keep voter flow working)
-      // Rewrite unilag.votewise.com.ng/results/xxx → /results/xxx
       if (pathname === "/" || pathname === "") {
         return NextResponse.rewrite(new URL(`/org/${slug}`, request.url));
       }
+    } else if (!pathname.startsWith("/api/") && !pathname.startsWith("/_next/") && (pathname === "/" || pathname === "")) {
+      // Not a subdomain — try custom domain lookup (e.g. elections.unilag.edu.ng → /org/{slug})
+      const customTenant = await resolveTenantByCustomDomain(host);
+      if (customTenant?.slug) {
+        return NextResponse.rewrite(new URL(`/org/${customTenant.slug}`, request.url));
+      }
     }
-    // For custom domains (e.g. elections.unilag.edu.ng), let the page handle it
-    // The org page will detect the domain and look up the org
   }
 
   // ─── Standard routing ────────────────────────────────────────────

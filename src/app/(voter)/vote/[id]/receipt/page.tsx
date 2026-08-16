@@ -31,6 +31,8 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { VoterProgress } from "@/components/shared/voter-progress";
+import { AnnouncementBanner } from "@/components/shared/announcement-banner";
+import { useVoterTemplate } from "@/components/shared/voter-template-styles";
 import { SupportChatWidget } from "@/components/shared/support-chat-widget";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
@@ -58,6 +60,7 @@ function ReceiptInner() {
   const params = useParams<{ id: string }>();
   const search = useSearchParams();
   const electionId = params.id;
+  const { styles: tplStyles } = useVoterTemplate(electionId);
   const reference = search.get("reference");
   const alreadyVoted = search.get("alreadyVoted") === "1";
   const countParam = search.get("count");
@@ -79,6 +82,9 @@ function ReceiptInner() {
   return (
     <div className="space-y-6">
       <VoterProgress current="receipt" />
+
+      {/* Election announcements from admin */}
+      <AnnouncementBanner electionId={electionId} />
 
       <motion.div
         initial={reduce ? false : { opacity: 0, scale: 0.94, y: 12 }}
@@ -103,7 +109,7 @@ function ReceiptInner() {
               <CheckCircle2 className="size-8" />
             )}
           </div>
-          <h1 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">
+          <h1 className={`mt-4 text-2xl font-bold sm:text-3xl ${tplStyles.headingClass}`}>
             {alreadyVoted
               ? "You have already voted"
               : "Your vote has been recorded"}

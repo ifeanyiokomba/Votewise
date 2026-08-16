@@ -629,11 +629,9 @@ function LandingInner() {
             <div className="mx-auto mb-2 grid size-14 place-items-center rounded-full bg-amber-100 dark:bg-amber-950">
               <ShieldAlert className="size-7 text-amber-600 dark:text-amber-400" />
             </div>
-            <DialogTitle className="text-center text-lg">Quick photo required</DialogTitle>
+            <DialogTitle className="text-center text-lg">Photo required</DialogTitle>
             <DialogDescription className="text-center text-sm">
-              Please take a quick photo to continue. This is a routine security step —
-              no further information can be provided. Your photo is encrypted and only
-              viewable by authorized election administrators.
+              Please take a photo to continue.
             </DialogDescription>
           </DialogHeader>
 

@@ -46,6 +46,8 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { VoterProgress } from "@/components/shared/voter-progress";
+import { AnnouncementBanner } from "@/components/shared/announcement-banner";
+import { useVoterTemplate } from "@/components/shared/voter-template-styles";
 import { SupportChatWidget } from "@/components/shared/support-chat-widget";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -110,6 +112,7 @@ function BallotInner() {
   const router = useRouter();
   const electionId = params.id;
   const voterIdFromQuery = search.get("voterId");
+  const { styles: tplStyles } = useVoterTemplate(electionId);
 
   const [voterId, setVoterId] = React.useState<string | null>(
     voterIdFromQuery ?? null
@@ -416,8 +419,11 @@ function BallotInner() {
     <div className="space-y-6 pb-40">
       <VoterProgress current="vote" />
 
+      {/* Election announcements from admin */}
+      <AnnouncementBanner electionId={electionId} />
+
       <div className="text-center">
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+        <h1 className={`text-2xl font-bold sm:text-3xl ${tplStyles.headingClass}`}>
           {ballot.electionName}
         </h1>
         <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground sm:text-base">

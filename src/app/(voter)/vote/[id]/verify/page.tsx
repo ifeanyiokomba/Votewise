@@ -35,6 +35,8 @@ import {
   InputOTPSeparator,
 } from "@/components/ui/input-otp";
 import { VoterProgress } from "@/components/shared/voter-progress";
+import { AnnouncementBanner } from "@/components/shared/announcement-banner";
+import { useVoterTemplate } from "@/components/shared/voter-template-styles";
 import { SupportChatWidget } from "@/components/shared/support-chat-widget";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
@@ -82,6 +84,7 @@ function VerifyInner() {
   const electionId = params.id;
 
   const voterIdFromQuery = search.get("voterId");
+  const { styles: tplStyles } = useVoterTemplate(electionId);
   const channelFromQuery = search.get("channel") as Channel | null;
 
   const [voterId, setVoterId] = React.useState<string | null>(
@@ -275,8 +278,11 @@ function VerifyInner() {
     <div className="space-y-6">
       <VoterProgress current="verify" />
 
+      {/* Election announcements from admin */}
+      <AnnouncementBanner electionId={electionId} />
+
       <div className="text-center">
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+        <h1 className={`text-2xl font-bold sm:text-3xl ${tplStyles.headingClass}`}>
           Enter your verification code
         </h1>
         <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground sm:text-base">

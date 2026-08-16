@@ -12,6 +12,7 @@ import {
   Settings,
   Building2,
   BarChart3,
+  Activity,
 } from "lucide-react";
 
 export interface NavItem {
@@ -26,6 +27,7 @@ export const PRIMARY_NAV: NavItem[] = [
   { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
   { label: "Elections", href: "/dashboard/elections", icon: Vote },
   { label: "Voters", href: "/dashboard/voters", icon: Users },
+  { label: "Voter Activity", href: "/dashboard/voter-activity", icon: Activity },
   { label: "Compare", href: "/dashboard/compare", icon: BarChart3 },
   { label: "Support", href: "/dashboard/support", icon: LifeBuoy },
   { label: "Audit Log", href: "/dashboard/audit", icon: ScrollText },

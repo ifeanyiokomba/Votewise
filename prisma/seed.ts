@@ -266,7 +266,7 @@ async function main() {
   });
 
   console.log("✅ Seed complete.");
-  console.log("   Platform admin: admin@votewise.com.ng / Admin@12345");
+  console.log("   Platform admin: admin@votewise.com.ng / Ntaokomba91615");
   console.log("   Org owner:       demo@votewise.com.ng / Demo@1234");
   console.log("   Live election:   Student Union Government Elections 2025");
   console.log("   Voter sample:    voter1@unizik.edu.ng (lookup: UNIZIK/2020/1000)");
