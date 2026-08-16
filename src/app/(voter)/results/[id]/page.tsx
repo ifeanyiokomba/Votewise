@@ -18,6 +18,8 @@ import {
   BarChart3,
   Link2,
   ReceiptText,
+  Activity,
+  Vote,
 } from "lucide-react";
 
 import { apiFetch } from "@/lib/api-fetch";
@@ -68,12 +70,34 @@ type ElectionResults = {
 type UnpublishedResponse = {
   published: false;
   status: string;
+  resultVisibility?: string;
   electionName: string;
   electionId: string;
 };
 
+type LiveResponse = {
+  published: true;
+  live: true;
+  resultVisibility: string;
+  election: {
+    id: string;
+    name: string;
+    status: string;
+    description: string | null;
+    endTime: string | null;
+  };
+  liveStats: {
+    totalVoters: number;
+    totalVotes: number;
+    turnout: number;
+  };
+  results: null;
+};
+
 type PublishedResponse = {
   published: true;
+  live: false;
+  resultVisibility: string;
   election: {
     id: string;
     name: string;
@@ -84,7 +108,7 @@ type PublishedResponse = {
   results: ElectionResults;
 };
 
-type PublicResultsResponse = UnpublishedResponse | PublishedResponse;
+type PublicResultsResponse = UnpublishedResponse | LiveResponse | PublishedResponse;
 
 export default function ResultsPage() {
   return (
@@ -190,6 +214,17 @@ function ResultsInner() {
         electionName={data.electionName}
         status={data.status}
         electionId={data.electionId}
+        resultVisibility={data.resultVisibility}
+      />
+    );
+  }
+
+  // Live mode — show turnout stats without candidate breakdown
+  if ("live" in data && data.live) {
+    return (
+      <LiveResultsState
+        election={data.election}
+        liveStats={data.liveStats}
       />
     );
   }
@@ -390,15 +425,22 @@ function UnpublishedState({
   electionName,
   status,
   electionId,
+  resultVisibility,
 }: {
   electionName: string;
   status: string;
   electionId: string;
+  resultVisibility?: string;
 }) {
   const isLive = status === "LIVE";
   const isClosed =
     status === "CLOSED" || status === "RESULTS_REVIEW";
   const isScheduled = status === "SCHEDULED" || status === "READY";
+
+  // Customize the message based on the visibility setting
+  const liveMessage = resultVisibility === "AFTER_CLOSE"
+    ? "Results will be shown here once voting closes. Live results are disabled for this election."
+    : "To protect voter privacy, results are not shown while voting is open. Candidate tallies will appear here once the results are officially published.";
 
   return (
     <div className="space-y-6">
@@ -431,7 +473,7 @@ function UnpublishedState({
           </CardTitle>
           <CardDescription>
             {isLive
-              ? "To protect voter privacy, live results are not shown while voting is open. Candidate tallies will appear here once voting closes and the results are officially published."
+              ? liveMessage
               : isClosed
                 ? "Voting has closed. The election administrator is reviewing and certifying results before publication. Check back shortly."
                 : isScheduled
@@ -449,6 +491,126 @@ function UnpublishedState({
           <p className="text-xs text-muted-foreground">
             Questions? Contact your election administrator.
           </p>
+        </CardContent>
+      </Card>
+
+      <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+        <ShieldCheck className="size-3.5 text-primary" />
+        <span>Results are independently auditable once published.</span>
+      </div>
+    </div>
+  );
+}
+
+function LiveResultsState({
+  election,
+  liveStats,
+}: {
+  election: {
+    id: string;
+    name: string;
+    status: string;
+    description: string | null;
+    endTime: string | null;
+  };
+  liveStats: {
+    totalVoters: number;
+    totalVotes: number;
+    turnout: number;
+  };
+}) {
+  return (
+    <div className="space-y-6">
+      {/* Hero */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: "easeOut" }}
+        className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/8 via-accent/30 to-background p-6 text-center sm:p-8"
+      >
+        <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-primary/10 blur-3xl" />
+        <div className="relative">
+          <div className="mb-3 flex justify-center">
+            <Badge variant="outline" className="gap-1.5 border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-2 w-2 animate-ping rounded-full bg-emerald-500 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+              </span>
+              Live — Voting in progress
+            </Badge>
+          </div>
+          <h1 className="text-balance text-2xl font-bold leading-tight tracking-tight sm:text-3xl">
+            {election.name}
+          </h1>
+          {election.description && (
+            <p className="mx-auto mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base">
+              {election.description}
+            </p>
+          )}
+        </div>
+      </motion.div>
+
+      {/* Live turnout stats */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <Card>
+          <CardContent className="p-4 text-center">
+            <Users className="mx-auto h-5 w-5 text-primary" />
+            <p className="mt-2 text-2xl font-bold tabular-nums">{liveStats.totalVoters}</p>
+            <p className="text-xs text-muted-foreground">Eligible Voters</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <Vote className="mx-auto h-5 w-5 text-emerald-500" />
+            <p className="mt-2 text-2xl font-bold tabular-nums">{liveStats.totalVotes}</p>
+            <p className="text-xs text-muted-foreground">Votes Cast</p>
+          </CardContent>
+        </Card>
+        <Card className="col-span-2 sm:col-span-1">
+          <CardContent className="p-4 text-center">
+            <BarChart3 className="mx-auto h-5 w-5 text-chart-2" />
+            <p className="mt-2 text-2xl font-bold tabular-nums">{liveStats.turnout.toFixed(1)}%</p>
+            <p className="text-xs text-muted-foreground">Turnout</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Turnout progress bar */}
+      <Card>
+        <CardHeader className="border-b pb-4">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Activity className="h-4 w-4 text-primary" />
+            Live turnout
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Real-time participation — updates automatically
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-4">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium">{liveStats.totalVotes} of {liveStats.totalVoters} voters</span>
+              <span className="font-bold tabular-nums text-primary">{liveStats.turnout.toFixed(1)}%</span>
+            </div>
+            <Progress value={liveStats.turnout} className="h-3" />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Privacy notice */}
+      <Card className="border-primary/20 bg-primary/5">
+        <CardContent className="flex items-start gap-3 p-4">
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+            <ShieldCheck className="h-4 w-4" />
+          </div>
+          <div>
+            <p className="text-sm font-medium">Candidate results are hidden during voting</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              This election is set to show live turnout, but candidate tallies are kept private
+              until voting closes to protect voter privacy and prevent undue influence.
+              Full results will appear here once the election is published.
+            </p>
+          </div>
         </CardContent>
       </Card>
 

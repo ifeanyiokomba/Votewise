@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ElectionShell } from "@/components/dashboard/election-shell";
 import { PositionResultsCard } from "@/components/dashboard/results-bar";
+import { ResultVisibilityControl } from "@/components/dashboard/result-visibility-control";
 import { EmptyState, ErrorState } from "@/components/dashboard/dashboard-skeleton";
 import { apiFetch } from "@/lib/api-fetch";
 import { toast } from "sonner";
@@ -205,6 +206,9 @@ export default function ResultsPage({
             )}
           </div>
         </div>
+
+        {/* Result visibility control */}
+        <ResultVisibilityControl electionId={electionId ?? ""} />
 
         {loading ? (
           <div className="space-y-4">
