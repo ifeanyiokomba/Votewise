@@ -10,22 +10,66 @@ import { MAX_FILE_SIZE_MB } from "@/lib/constants";
 type Params = { params: Promise<{ id: string }> };
 
 function normalizeRow(raw: Record<string, unknown>): VoterRow {
-  const get = (k: string) => {
-    const key = Object.keys(raw).find(
-      (rk) => rk.trim().toLowerCase() === k.trim().toLowerCase()
-    );
-    const v = key ? raw[key] : undefined;
-    return v == null ? undefined : String(v).trim();
+  const get = (...keys: string[]) => {
+    for (const k of keys) {
+      const key = Object.keys(raw).find(
+        (rk) => rk.trim().toLowerCase() === k.trim().toLowerCase()
+      );
+      const v = key ? raw[key] : undefined;
+      if (v != null && String(v).trim()) return String(v).trim();
+    }
+    return undefined;
   };
+
+  // Support separate first name / last name columns, or combined "name" / "full name"
+  const firstName = get("first name", "firstname", "first");
+  const lastName = get("last name", "lastname", "last", "surname");
+  const fullName = get("name", "full name", "voter name", "full_name");
+
+  // Combine: prefer first+last, fall back to full name
+  let name = "";
+  if (firstName && lastName) {
+    name = `${firstName} ${lastName}`;
+  } else if (firstName) {
+    name = firstName;
+  } else if (lastName) {
+    name = lastName;
+  } else {
+    name = fullName ?? "";
+  }
+
   return {
-    name: get("name") ?? get("full name") ?? get("voter name") ?? "",
-    matricNumber: get("matric number") ?? get("matric") ?? get("matric no") ?? get("id"),
-    department: get("department") ?? get("dept"),
+    name,
+    matricNumber: get("matric number", "matric", "matric no", "matric_number", "id", "voter id"),
+    department: get("department", "dept"),
     faculty: get("faculty"),
-    level: get("level") ?? get("year"),
-    phone: get("phone") ?? get("mobile") ?? get("telephone"),
-    email: get("email") ?? get("email address"),
+    level: get("level", "year"),
+    phone: get("phone", "mobile", "telephone", "phone number"),
+    email: get("email", "email address", "email_address"),
   };
+}
+
+// Validate a row and return a detailed error message with guidance
+function validateRow(row: VoterRow, index: number): { valid: boolean; error?: string } {
+  if (!row.name || row.name.trim().length < 2) {
+    return {
+      valid: false,
+      error: `Row ${index + 1}: Missing or too short voter name. Ensure the "First Name" and "Last Name" (or "Name") column is filled.`,
+    };
+  }
+  if (!row.email && !row.phone) {
+    return {
+      valid: false,
+      error: `Row ${index + 1}: Voter "${row.name}" has neither email nor phone. At least one is required for OTP verification.`,
+    };
+  }
+  if (!row.matricNumber && !row.email && !row.phone) {
+    return {
+      valid: false,
+      error: `Row ${index + 1}: Voter "${row.name}" has no unique identifier (matric number, email, or phone).`,
+    };
+  }
+  return { valid: true };
 }
 
 export async function POST(request: Request, { params }: Params) {
@@ -68,6 +112,19 @@ export async function POST(request: Request, { params }: Params) {
 
     const preview = await VoterService.previewImport(rows);
 
+    // Run detailed validation on each row
+    const detailedErrors: { row: number; message: string; guidance: string }[] = [];
+    rows.forEach((row, idx) => {
+      const validation = validateRow(row, idx);
+      if (!validation.valid && validation.error) {
+        detailedErrors.push({
+          row: idx + 1,
+          message: validation.error,
+          guidance: "Fix this row in your CSV and re-upload. Make sure the column headers are: First Name, Last Name, Email, Phone, Matric Number, Department, Faculty, Level.",
+        });
+      }
+    });
+
     if (mode === "preview") {
       return ok({
         mode: "preview",
@@ -76,7 +133,21 @@ export async function POST(request: Request, { params }: Params) {
         duplicates: preview.duplicates.length,
         invalid: preview.invalid.length,
         preview: preview.valid.slice(0, 10),
-        errors: [...preview.invalid, ...preview.duplicates.map((d) => ({ row: d.row, message: `Duplicate within file: ${d.identifier}` }))],
+        errors: [
+          ...detailedErrors,
+          ...preview.invalid.map((e) => ({ row: e.row, message: e.message, guidance: "Fix and re-upload." })),
+          ...preview.duplicates.map((d) => ({
+            row: d.row,
+            message: `Duplicate within file: ${d.identifier}`,
+            guidance: "This voter appears more than once in the file. Remove duplicates and re-upload.",
+          })),
+        ],
+        // Include expected CSV format for guidance
+        expectedFormat: {
+          headers: ["First Name", "Last Name", "Email", "Phone", "Matric Number", "Department", "Faculty", "Level"],
+          example: "John,Doe,john@unilag.edu.ng,+2348012345678,UNILAG/2020/123,Computer Science,Engineering,300",
+          notes: "First Name and Last Name are required. At least one of Email, Phone, or Matric Number is required for OTP verification.",
+        },
       });
     }
 

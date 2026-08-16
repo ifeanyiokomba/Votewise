@@ -49,6 +49,7 @@ import {
   Vote,
 } from "lucide-react";
 import type { CandidateDTO, PositionDTO } from "@/components/dashboard/types";
+import { CandidatePhotoUploader } from "@/components/dashboard/candidate-photo-uploader";
 
 interface CandidatesResponse {
   candidates: CandidateDTO[];
@@ -346,30 +347,14 @@ export default function CandidatesPage({
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
-            {/* Photo preview + URL input */}
-            <div className="flex items-center gap-4">
-              <Avatar className="h-16 w-16 border">
-                {formPhoto ? (
-                  <img src={formPhoto} alt="Preview" className="h-full w-full rounded-full object-cover" />
-                ) : (
-                  <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
-                    {formName ? initials(formName) : "?"}
-                  </AvatarFallback>
-                )}
-              </Avatar>
-              <div className="flex-1 space-y-1.5">
-                <Label htmlFor="cand-photo">Photo URL</Label>
-                <Input
-                  id="cand-photo"
-                  value={formPhoto}
-                  onChange={(e) => setFormPhoto(e.target.value)}
-                  placeholder="https://example.com/photo.jpg"
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  Paste a direct link to the candidate's headshot. Square images work best.
-                </p>
-              </div>
-            </div>
+            {/* Photo upload from device */}
+            <CandidatePhotoUploader
+              electionId={electionId}
+              candidateId={editing?.id}
+              currentPhoto={formPhoto}
+              name={formName}
+              onPhotoChange={setFormPhoto}
+            />
             <div className="grid gap-1.5">
               <Label htmlFor="cand-name">Name *</Label>
               <Input
