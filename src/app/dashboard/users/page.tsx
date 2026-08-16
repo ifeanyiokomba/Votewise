@@ -386,8 +386,8 @@ export default function UsersPage() {
                 });
                 setInviting(false);
                 if (res.success) {
-                  toast.success("Member added", {
-                    description: `${inviteName} has been added to your organization.`,
+                  toast.success("Member added & email sent", {
+                    description: `${inviteName} has been added. Login credentials sent to ${inviteEmail}.`,
                   });
                   setInviteName("");
                   setInviteEmail("");
