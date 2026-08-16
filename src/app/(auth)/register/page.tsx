@@ -43,7 +43,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PasswordInput } from "@/components/shared/password-input";
-import { GoogleAuthButton } from "@/components/shared/google-auth-button";
 import {
   PasswordStrengthMeter,
   PasswordRequirements,
@@ -310,18 +309,6 @@ export default function RegisterPage() {
           </a>
           .
         </p>
-      </CardContent>
-
-      <Separator className="bg-border/70" />
-
-      <CardContent className="pt-6">
-        <div className="relative mb-4">
-          <Separator />
-          <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
-            or sign up with
-          </span>
-        </div>
-        <GoogleAuthButton />
       </CardContent>
 
       <Separator className="bg-border/70" />

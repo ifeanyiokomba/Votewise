@@ -81,13 +81,14 @@ interface NegotiationDTO {
   contactName: string;
   contactEmail: string;
   contactPhone: string | null;
+  preferredResponseChannel: string | null;
   message: string | null;
   internalNotes: string | null;
   assignedToId: string | null;
   createdAt: string;
   updatedAt: string;
   election?: { id: string; name: string } | null;
-  organization?: { id: string; name: string } | null;
+  organization?: { id: string; name: string; slug?: string | null } | null;
   assignedTo?: { name: string; email: string } | null;
 }
 
@@ -444,9 +445,16 @@ export default function CommercialPage() {
               {/* Contact */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Contact</CardTitle>
+                  <CardTitle className="flex items-center justify-between text-sm">
+                    <span>Contact</span>
+                    {selected.preferredResponseChannel && selected.preferredResponseChannel !== "EMAIL" && (
+                      <Badge variant="outline" className="text-[10px] border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+                        Prefers: {selected.preferredResponseChannel === "WHATSAPP" ? "💬 WhatsApp" : "📞 Phone call"}
+                      </Badge>
+                    )}
+                  </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-1.5 text-sm">
+                <CardContent className="space-y-2 text-sm">
                   <div className="flex items-center gap-2">
                     <Users className="h-3.5 w-3.5 text-muted-foreground" />
                     <span className="font-medium">{selected.contactName}</span>
@@ -471,6 +479,31 @@ export default function CommercialPage() {
                       </a>
                     </div>
                   )}
+                  {/* Quick response actions */}
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    <Button size="sm" variant="outline" asChild className="h-7 text-[11px]">
+                      <a href={`mailto:${selected.contactEmail}?subject=Re: Election activation negotiation`}>
+                        <Mail className="h-3 w-3" /> Email
+                      </a>
+                    </Button>
+                    {selected.contactPhone && (
+                      <>
+                        <Button size="sm" variant="outline" asChild className="h-7 text-[11px]">
+                          <a href={`tel:${selected.contactPhone}`}>
+                            <Phone className="h-3 w-3" /> Call
+                          </a>
+                        </Button>
+                        <Button size="sm" variant="outline" asChild className="h-7 text-[11px]">
+                          <a href={`https://wa.me/${selected.contactPhone.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener">
+                            <MessageSquare className="h-3 w-3" /> WhatsApp
+                          </a>
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                  <p className="pt-1 text-[10px] text-muted-foreground">
+                    Use these shortcuts to respond in the org&apos;s preferred channel and finalize the negotiation.
+                  </p>
                 </CardContent>
               </Card>
 
@@ -552,25 +585,54 @@ export default function CommercialPage() {
               </div>
             </div>
           )}
-          <SheetFooter className="border-t p-4 sm:p-6">
-            <Button
-              variant="outline"
-              onClick={() => setSheetOpen(false)}
-              disabled={saving}
-            >
-              Close
-            </Button>
-            <Button onClick={saveChanges} disabled={saving || !selected}>
-              {saving ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Saving…
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4" /> Save changes
-                </>
-              )}
-            </Button>
+          {/* Save footer with Approve / Decline quick actions */}
+          <SheetFooter className="flex-col gap-3 border-t p-4 sm:p-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="default"
+                disabled={saving || !selected || selected.status === "APPROVED"}
+                onClick={() => {
+                  setStatusValue("APPROVED");
+                  setTimeout(() => saveChanges(), 50);
+                }}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                <CheckCircle2 className="h-4 w-4" /> Approve &amp; Activate
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={saving || !selected || selected.status === "DECLINED"}
+                onClick={() => {
+                  setStatusValue("DECLINED");
+                  setTimeout(() => saveChanges(), 50);
+                }}
+                className="border-destructive/30 text-destructive hover:bg-destructive/5"
+              >
+                <XCircle className="h-4 w-4" /> Decline
+              </Button>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setSheetOpen(false)}
+                disabled={saving}
+              >
+                Close
+              </Button>
+              <Button onClick={saveChanges} disabled={saving || !selected}>
+                {saving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Saving…
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4" /> Save changes
+                  </>
+                )}
+              </Button>
+            </div>
           </SheetFooter>
         </SheetContent>
       </Sheet>

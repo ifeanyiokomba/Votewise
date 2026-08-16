@@ -1,0 +1,648 @@
+     1→"use client";
+     2→
+     3→import { useEffect, useState, useCallback } from "react";
+     4→import { motion } from "framer-motion";
+     5→import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+     6→import { Button } from "@/components/ui/button";
+     7→import { Input } from "@/components/ui/input";
+     8→import { Label } from "@/components/ui/label";
+     9→import { Textarea } from "@/components/ui/textarea";
+    10→import { Badge } from "@/components/ui/badge";
+    11→import { Separator } from "@/components/ui/separator";
+    12→import {
+    13→  Dialog,
+    14→  DialogContent,
+    15→} from "@/components/ui/dialog";
+    16→import {
+    17→  Tabs,
+    18→  TabsContent,
+    19→  TabsList,
+    20→  TabsTrigger,
+    21→} from "@/components/ui/tabs";
+    22→import {
+    23→  AlertDialog,
+    24→  AlertDialogAction,
+    25→  AlertDialogCancel,
+    26→  AlertDialogContent,
+    27→  AlertDialogDescription,
+    28→  AlertDialogFooter,
+    29→  AlertDialogHeader,
+    30→  AlertDialogTitle,
+    31→} from "@/components/ui/alert-dialog";
+    32→import { ElectionShell } from "@/components/dashboard/election-shell";
+    33→import { ErrorState } from "@/components/dashboard/dashboard-skeleton";
+    34→import { apiFetch } from "@/lib/api-fetch";
+    35→import { toast } from "sonner";
+    36→import { cn, formatCurrency, formatNumber } from "@/lib/utils";
+    37→import {
+    38→  Wallet,
+    39→  CreditCard,
+    40→  Handshake,
+    41→  CheckCircle2,
+    42→  Loader2,
+    43→  Receipt,
+    44→  Users,
+    45→  Tag,
+    46→  CircleDollarSign,
+    47→  Sparkles,
+    48→  ShieldCheck,
+    49→  Copy,
+    50→  ArrowRight,
+    51→  Link as LinkIcon,
+    52→} from "lucide-react";
+    53→import type { CommercialActivationDTO } from "@/components/dashboard/types";
+    54→
+    55→interface ActivationResponse {
+    56→  activation: CommercialActivationDTO;
+    57→}
+    58→
+    59→const STATUS_LABELS: Record<string, { label: string; tone: string }> = {
+    60→  UNPRICED: { label: "Unpriced", tone: "bg-muted text-muted-foreground border-border" },
+    61→  PAYMENT_REQUIRED: { label: "Payment required", tone: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900" },
+    62→  PAYMENT_PENDING: { label: "Payment pending", tone: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900" },
+    63→  PAYMENT_VERIFIED: { label: "Payment verified", tone: "bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800" },
+    64→  NEGOTIATION_REQUESTED: { label: "Negotiation requested", tone: "bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-900" },
+    65→  NEGOTIATION_IN_PROGRESS: { label: "Negotiation in progress", tone: "bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-900" },
+    66→  NEGOTIATED_SETTLEMENT_PENDING: { label: "Settlement pending", tone: "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-950/40 dark:text-violet-300 dark:border-violet-900" },
+    67→  MANUALLY_APPROVED: { label: "Manually approved", tone: "bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800" },
+    68→  DECLINED: { label: "Declined", tone: "bg-destructive/10 text-destructive border-destructive/30" },
+    69→};
+    70→
+    71→interface PayResponse {
+    72→  payment: { reference: string; amount: number; status: string };
+    73→}
+    74→
+    75→export default function ActivatePage({
+    76→  params,
+    77→}: {
+    78→  params: Promise<{ id: string }>;
+    79→}) {
+    80→  const [electionId, setElectionId] = useState<string | null>(null);
+    81→  const [activation, setActivation] = useState<CommercialActivationDTO | null>(null);
+    82→  const [loading, setLoading] = useState(true);
+    83→  const [error, setError] = useState<string | null>(null);
+    84→  const [payOpen, setPayOpen] = useState(false);
+    85→  const [paying, setPaying] = useState(false);
+    86→  const [paymentResult, setPaymentResult] = useState<{ reference: string; amount: number } | null>(null);
+    87→
+    88→  // Negotiation form state
+    89→  const [contactName, setContactName] = useState("");
+    90→  const [contactEmail, setContactEmail] = useState("");
+    91→  const [contactPhone, setContactPhone] = useState("");
+    92→  const [message, setMessage] = useState("");
+    93→  const [proposedAmount, setProposedAmount] = useState("");
+    94→  const [submitting, setSubmitting] = useState(false);
+    95→  const [negotiationSent, setNegotiationSent] = useState(false);
+    96→  const [showCelebration, setShowCelebration] = useState(false);
+    97→
+    98→  useEffect(() => {
+    99→    (async () => {
+   100→      const { id } = await params;
+   101→      setElectionId(id);
+   102→    })();
+   103→  }, [params]);
+   104→
+   105→  const load = useCallback(async () => {
+   106→    if (!electionId) return;
+   107→    setLoading(true);
+   108→    setError(null);
+   109→    const res = await apiFetch<ActivationResponse>(
+   110→      `/api/elections/${electionId}/activation`
+   111→    );
+   112→    setLoading(false);
+   113→    if (!res.success || !res.data) {
+   114→      setError(res.error?.message ?? "Could not load activation");
+   115→      return;
+   116→    }
+   117→    setActivation(res.data.activation);
+   118→  }, [electionId]);
+   119→
+   120→  useEffect(() => {
+   121→    let cancelled = false;
+   122→    (async () => {
+   123→      if (cancelled) return;
+   124→      await load();
+   125→    })();
+   126→    return () => {
+   127→      cancelled = true;
+   128→    };
+   129→  }, [load]);
+   130→
+   131→  async function pay() {
+   132→    if (!electionId) return;
+   133→    setPaying(true);
+   134→    const res = await apiFetch<PayResponse>(
+   135→      `/api/elections/${electionId}/activation/pay`,
+   136→      { method: "POST" }
+   137→    );
+   138→    setPaying(false);
+   139→    setPayOpen(false);
+   140→    if (!res.success || !res.data?.payment) {
+   141→      toast.error("Payment failed", { description: res.error?.message });
+   142→      return;
+   143→    }
+   144→    setPaymentResult({
+   145→      reference: res.data.payment.reference,
+   146→      amount: res.data.payment.amount,
+   147→    });
+   148→    toast.success("Payment received!", {
+   149→      description: `Reference: ${res.data.payment.reference}`,
+   150→    });
+   151→    setShowCelebration(true);
+   152→    load();
+   153→  }
+   154→
+   155→  async function submitNegotiation(e: React.FormEvent) {
+   156→    e.preventDefault();
+   157→    if (!electionId) return;
+   158→    if (contactName.trim().length < 2) {
+   159→      toast.error("Contact name is too short");
+   160→      return;
+   161→    }
+   162→    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
+   163→      toast.error("Enter a valid email");
+   164→      return;
+   165→    }
+   166→    setSubmitting(true);
+   167→    const body = {
+   168→      contactName: contactName.trim(),
+   169→      contactEmail: contactEmail.trim(),
+   170→      contactPhone: contactPhone.trim() || null,
+   171→      message: message.trim() || null,
+   172→      proposedAmount: proposedAmount ? Number(proposedAmount) : null,
+   173→    };
+   174→    const res = await apiFetch<{ negotiation: unknown }>(
+   175→      `/api/elections/${electionId}/activation/negotiate`,
+   176→      { method: "POST", body: JSON.stringify(body) }
+   177→    );
+   178→    setSubmitting(false);
+   179→    if (!res.success) {
+   180→      toast.error("Could not submit request", { description: res.error?.message });
+   181→      return;
+   182→    }
+   183→    toast.success("Negotiation request sent", {
+   184→      description: "Our team will reach out within one business day.",
+   185→    });
+   186→    setNegotiationSent(true);
+   187→    load();
+   188→  }
+   189→
+   190→  const isVerified = activation?.status === "PAYMENT_VERIFIED" || activation?.status === "MANUALLY_APPROVED";
+   191→
+   192→  return (
+   193→    <ElectionShell electionId={electionId ?? ""} activeTab="activate">
+   194→      <div className="space-y-4">
+   195→        <div className="flex flex-wrap items-center justify-between gap-3">
+   196→          <div>
+   197→            <h2 className="text-lg font-semibold tracking-tight">Activation</h2>
+   198→            <p className="text-sm text-muted-foreground">
+   199→              Paid-plan elections require activation before going LIVE. Choose to pay the standard rate or request a negotiation.
+   200→            </p>
+   201→          </div>
+   202→          {activation && (
+   203→            <Badge
+   204→              variant="outline"
+   205→              className={cn("text-xs", STATUS_LABELS[activation.status]?.tone ?? STATUS_LABELS.UNPRICED.tone)}
+   206→            >
+   207→              {STATUS_LABELS[activation.status]?.label ?? activation.status.replace(/_/g, " ").toLowerCase()}
+   208→            </Badge>
+   209→          )}
+   210→        </div>
+   211→
+   212→        {loading ? (
+   213→          <div className="grid gap-4 sm:grid-cols-3">
+   214→            {Array.from({ length: 3 }).map((_, i) => (
+   215→              <div key={i} className="h-32 animate-pulse rounded-xl bg-muted" />
+   216→            ))}
+   217→          </div>
+   218→        ) : error ? (
+   219→          <ErrorState message={error} onRetry={load} />
+   220→        ) : activation ? (
+   221→          <>
+   222→            {/* Already activated state */}
+   223→            {isVerified && (
+   224→              <Card className="overflow-hidden border-primary/30 bg-primary/5">
+   225→                <CardContent className="flex flex-wrap items-center gap-3 p-4">
+   226→                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300">
+   227→                    <CheckCircle2 className="h-5 w-5" />
+   228→                  </div>
+   229→                  <div className="min-w-0 flex-1">
+   230→                    <p className="text-sm font-semibold">Election activated</p>
+   231→                    <p className="text-xs text-muted-foreground">
+   232→                      This election is cleared to go LIVE. Head back to Overview and transition to LIVE.
+   233→                    </p>
+   234→                  </div>
+   235→                  {activation.activatedAt && (
+   236→                    <Badge variant="outline" className="text-[10px]">
+   237→                      <ShieldCheck className="h-3 w-3" />
+   238→                      Activated {new Date(activation.activatedAt).toLocaleDateString()}
+   239→                    </Badge>
+   240→                  )}
+   241→                </CardContent>
+   242→              </Card>
+   243→            )}
+   244→
+   245→            <div className="grid gap-4 lg:grid-cols-3">
+   246→              {/* Pricing summary */}
+   247→              <Card className="lg:col-span-1">
+   248→                <CardHeader className="border-b pb-4">
+   249→                  <CardTitle className="flex items-center gap-2 text-base">
+   250→                    <Wallet className="h-4 w-4 text-primary" />
+   251→                    Pricing summary
+   252→                  </CardTitle>
+   253→                  <CardDescription>Per-voter rate · snapshot at quote time.</CardDescription>
+   254→                </CardHeader>
+   255→                <CardContent className="space-y-3 pt-4">
+   256→                  <Row
+   257→                    icon={Users}
+   258→                    label="Eligible voters"
+   259→                    value={formatNumber(activation.voterCount)}
+   260→                  />
+   261→                  <Row
+   262→                    icon={Tag}
+   263→                    label="Applicable rate"
+   264→                    value={`${formatCurrency(activation.applicableRate, activation.currency)} / voter`}
+   265→                  />
+   266→                  <Row
+   267→                    icon={Sparkles}
+   268→                    label="Pricing rule"
+   269→                    value={
+   270→                      <Badge variant="outline" className="text-[10px]">
+   271→                        {activation.pricingRule}
+   272→                      </Badge>
+   273→                    }
+   274→                  />
+   275→                  <Separator />
+   276→                  <Row
+   277→                    icon={CircleDollarSign}
+   278→                    label="Total amount"
+   279→                    value={
+   280→                      <span className="text-lg font-bold tabular-nums">
+   281→                        {formatCurrency(activation.calculatedAmount, activation.currency)}
+   282→                      </span>
+   283→                    }
+   284→                    highlight
+   285→                  />
+   286→                  <p className="text-[11px] text-muted-foreground">
+   287→                    Bulk pricing applies above 2,000 voters (₦300/voter instead of ₦400/voter).
+   288→                  </p>
+   289→                </CardContent>
+   290→              </Card>
+   291→
+   292→              {/* Action panel */}
+   293→              <Card className="lg:col-span-2">
+   294→                <CardHeader className="border-b pb-4">
+   295→                  <CardTitle className="text-base">Choose activation path</CardTitle>
+   296→                  <CardDescription>
+   297→                    {isVerified
+   298→                      ? "This election is already activated — no further action needed."
+   299→                      : "Pay now or request a custom quote. Both paths unlock LIVE."}
+   300→                  </CardDescription>
+   301→                </CardHeader>
+   302→                <CardContent className="pt-4">
+   303→                  {paymentResult ? (
+   304→                    <motion.div
+   305→                      initial={{ opacity: 0, y: 6 }}
+   306→                      animate={{ opacity: 1, y: 0 }}
+   307→                      className="flex flex-col items-center gap-3 py-6 text-center"
+   308→                    >
+   309→                      <div className="grid h-14 w-14 place-items-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300">
+   310→                        <CheckCircle2 className="h-7 w-7" />
+   311→                      </div>
+   312→                      <div>
+   313→                        <p className="text-lg font-semibold">Payment confirmed</p>
+   314→                        <p className="text-sm text-muted-foreground">
+   315→                          Your election is now activated and ready to go LIVE.
+   316→                        </p>
+   317→                      </div>
+   318→                      <div className="mt-2 flex items-center gap-2 rounded-lg border bg-muted/40 px-4 py-2 text-sm">
+   319→                        <Receipt className="h-4 w-4 text-muted-foreground" />
+   320→                        <span className="font-mono text-xs">{paymentResult.reference}</span>
+   321→                      </div>
+   322→                      <Button variant="outline" size="sm" onClick={() => setPaymentResult(null)}>
+   323→                        Dismiss
+   324→                      </Button>
+   325→                    </motion.div>
+   326→                  ) : negotiationSent ? (
+   327→                    <motion.div
+   328→                      initial={{ opacity: 0, y: 6 }}
+   329→                      animate={{ opacity: 1, y: 0 }}
+   330→                      className="flex flex-col items-center gap-3 py-6 text-center"
+   331→                    >
+   332→                      <div className="grid h-14 w-14 place-items-center rounded-full bg-sky-100 text-sky-600 dark:bg-sky-950/40 dark:text-sky-300">
+   333→                        <Handshake className="h-7 w-7" />
+   334→                      </div>
+   335→                      <div>
+   336→                        <p className="text-lg font-semibold">Negotiation request sent</p>
+   337→                        <p className="text-sm text-muted-foreground">
+   338→                          Our team will reach out to <span className="font-medium">{contactEmail}</span> within one business day.
+   339→                        </p>
+   340→                      </div>
+   341→                      <Button
+   342→                        variant="outline"
+   343→                        size="sm"
+   344→                        onClick={() => {
+   345→                          setNegotiationSent(false);
+   346→                          setContactName("");
+   347→                          setContactEmail("");
+   348→                          setContactPhone("");
+   349→                          setMessage("");
+   350→                          setProposedAmount("");
+   351→                        }}
+   352→                      >
+   353→                        Submit another
+   354→                      </Button>
+   355→                    </motion.div>
+   356→                  ) : isVerified ? (
+   357→                    <div className="flex flex-col items-center gap-3 py-6 text-center text-sm text-muted-foreground">
+   358→                      <ShieldCheck className="h-10 w-10 text-primary" />
+   359→                      No further activation action required.
+   360→                    </div>
+   361→                  ) : (
+   362→                    <Tabs defaultValue="pay">
+   363→                      <TabsList className="grid w-full grid-cols-2">
+   364→                        <TabsTrigger value="pay">
+   365→                          <CreditCard className="h-3.5 w-3.5" />
+   366→                          Pay &amp; activate
+   367→                        </TabsTrigger>
+   368→                        <TabsTrigger value="negotiate">
+   369→                          <Handshake className="h-3.5 w-3.5" />
+   370→                          Request negotiation
+   371→                        </TabsTrigger>
+   372→                      </TabsList>
+   373→
+   374→                      <TabsContent value="pay" className="mt-4 space-y-4">
+   375→                        <div className="rounded-lg border bg-muted/30 p-4">
+   376→                          <p className="text-xs text-muted-foreground">
+   377→                            You will be charged
+   378→                          </p>
+   379→                          <p className="mt-1 text-2xl font-bold tabular-nums">
+   380→                            {formatCurrency(activation.calculatedAmount, activation.currency)}
+   381→                          </p>
+   382→                          <p className="mt-1 text-xs text-muted-foreground">
+   383→                            for {formatNumber(activation.voterCount)} eligible voters at{" "}
+   384→                            {formatCurrency(activation.applicableRate, activation.currency)}/voter
+   385→                          </p>
+   386→                        </div>
+   387→                        <Button
+   388→                          className="w-full"
+   389→                          size="lg"
+   390→                          onClick={() => setPayOpen(true)}
+   391→                          disabled={!activation || activation.voterCount === 0}
+   392→                        >
+   393→                          <CreditCard className="h-4 w-4" />
+   394→                          Pay {formatCurrency(activation.calculatedAmount, activation.currency)} &amp; activate
+   395→                        </Button>
+   396→                        {activation.voterCount === 0 && (
+   397→                          <p className="text-center text-xs text-muted-foreground">
+   398→                            Add eligible voters before activating — pricing is per voter.
+   399→                          </p>
+   400→                        )}
+   401→                        <p className="text-center text-[11px] text-muted-foreground">
+   402→                          <ShieldCheck className="mr-1 inline h-3 w-3" />
+   403→                          Payments are processed securely. A receipt with a verifiable reference is issued instantly.
+   404→                        </p>
+   405→                      </TabsContent>
+   406→
+   407→                      <TabsContent value="negotiate" className="mt-4">
+   408→                        <form onSubmit={submitNegotiation} className="grid gap-4">
+   409→                          <div className="grid gap-4 sm:grid-cols-2">
+   410→                            <div className="grid gap-1.5">
+   411→                              <Label htmlFor="neg-name">Contact name *</Label>
+   412→                              <Input
+   413→                                id="neg-name"
+   414→                                value={contactName}
+   415→                                onChange={(e) => setContactName(e.target.value)}
+   416→                                placeholder="e.g. Adaeze Okafor"
+   417→                                required
+   418→                              />
+   419→                            </div>
+   420→                            <div className="grid gap-1.5">
+   421→                              <Label htmlFor="neg-email">Contact email *</Label>
+   422→                              <Input
+   423→                                id="neg-email"
+   424→                                type="email"
+   425→                                value={contactEmail}
+   426→                                onChange={(e) => setContactEmail(e.target.value)}
+   427→                                placeholder="finance@unizik.edu.ng"
+   428→                                required
+   429→                              />
+   430→                            </div>
+   431→                          </div>
+   432→                          <div className="grid gap-4 sm:grid-cols-2">
+   433→                            <div className="grid gap-1.5">
+   434→                              <Label htmlFor="neg-phone">Phone</Label>
+   435→                              <Input
+   436→                                id="neg-phone"
+   437→                                value={contactPhone}
+   438→                                onChange={(e) => setContactPhone(e.target.value)}
+   439→                                placeholder="+234 801 234 5678"
+   440→                              />
+   441→                            </div>
+   442→                            <div className="grid gap-1.5">
+   443→                              <Label htmlFor="neg-amount">Proposed amount (NGN)</Label>
+   444→                              <Input
+   445→                                id="neg-amount"
+   446→                                type="number"
+   447→                                value={proposedAmount}
+   448→                                onChange={(e) => setProposedAmount(e.target.value)}
+   449→                                placeholder={String(activation.calculatedAmount)}
+   450→                                min={0}
+   451→                              />
+   452→                            </div>
+   453→                          </div>
+   454→                          <div className="grid gap-1.5">
+   455→                            <Label htmlFor="neg-message">Message</Label>
+   456→                            <Textarea
+   457→                              id="neg-message"
+   458→                              value={message}
+   459→                              onChange={(e) => setMessage(e.target.value)}
+   460→                              rows={4}
+   461→                              placeholder="Tell us about your event, expected voter count, timeline, budget constraints…"
+   462→                            />
+   463→                          </div>
+   464→                          <Button type="submit" size="lg" disabled={submitting}>
+   465→                            {submitting ? (
+   466→                              <>
+   467→                                <Loader2 className="h-4 w-4 animate-spin" /> Sending…
+   468→                              </>
+   469→                            ) : (
+   470→                              <>
+   471→                                <Handshake className="h-4 w-4" /> Submit request
+   472→                              </>
+   473→                            )}
+   474→                          </Button>
+   475→                          <p className="text-center text-[11px] text-muted-foreground">
+   476→                            Standard rate:{" "}
+   477→                            <span className="font-medium">
+   478→                              {formatCurrency(activation.calculatedAmount, activation.currency)}
+   479→                            </span>{" "}
+   480→                            · You can propose a lower amount and we&apos;ll respond within one business day.
+   481→                          </p>
+   482→                        </form>
+   483→                      </TabsContent>
+   484→                    </Tabs>
+   485→                  )}
+   486→                </CardContent>
+   487→              </Card>
+   488→            </div>
+   489→          </>
+   490→        ) : null}
+   491→      </div>
+   492→
+   493→      <AlertDialog open={payOpen} onOpenChange={setPayOpen}>
+   494→        <AlertDialogContent>
+   495→          <AlertDialogHeader>
+   496→            <AlertDialogTitle className="flex items-center gap-2">
+   497→              <CreditCard className="h-5 w-5 text-primary" />
+   498→              Confirm payment
+   499→            </AlertDialogTitle>
+   500→            <AlertDialogDescription>
+   501→              {activation && (
+   502→                <>
+   503→                  You are about to pay{" "}
+   504→                  <span className="font-semibold text-foreground">
+   505→                    {formatCurrency(activation.calculatedAmount, activation.currency)}
+   506→                  </span>{" "}
+   507→                  for {formatNumber(activation.voterCount)} eligible voters. A receipt with a verifiable
+   508→                  reference will be issued instantly. The election will be marked as activated.
+   509→                </>
+   510→              )}
+   511→            </AlertDialogDescription>
+   512→          </AlertDialogHeader>
+   513→          <AlertDialogFooter>
+   514→            <AlertDialogCancel disabled={paying}>Cancel</AlertDialogCancel>
+   515→            <AlertDialogAction
+   516→              onClick={(e) => {
+   517→                e.preventDefault();
+   518→                pay();
+   519→              }}
+   520→              disabled={paying}
+   521→              className="bg-primary text-primary-foreground hover:bg-primary/90"
+   522→            >
+   523→              {paying ? (
+   524→                <>
+   525→                  <Loader2 className="h-4 w-4 animate-spin" /> Processing…
+   526→                </>
+   527→              ) : (
+   528→                <>
+   529→                  <CreditCard className="h-4 w-4" /> Pay now
+   530→                </>
+   531→              )}
+   532→            </AlertDialogAction>
+   533→          </AlertDialogFooter>
+   534→        </AlertDialogContent>
+   535→      </AlertDialog>
+   536→
+   537→      {/* ─── Celebratory Activation Window ─── */}
+   538→      <Dialog open={showCelebration} onOpenChange={setShowCelebration}>
+   539→        <DialogContent className="sm:max-w-lg">
+   540→          <motion.div
+   541→            initial={{ scale: 0.8, opacity: 0 }}
+   542→            animate={{ scale: 1, opacity: 1 }}
+   543→            transition={{ type: "spring", duration: 0.5 }}
+   544→            className="flex flex-col items-center py-6 text-center"
+   545→          >
+   546→            {/* Celebration animation */}
+   547→            <motion.div
+   548→              animate={{ rotate: [0, 10, -10, 0], scale: [1, 1.2, 1] }}
+   549→              transition={{ duration: 0.6, repeat: 2 }}
+   550→              className="grid h-20 w-20 place-items-center rounded-full bg-emerald-500/15 text-emerald-600 shadow-glow"
+   551→            >
+   552→              <CheckCircle2 className="h-10 w-10" />
+   553→            </motion.div>
+   554→
+   555→            <h2 className="mt-4 text-2xl font-bold tracking-tight">Election Activated! 🎉</h2>
+   556→            <p className="mt-2 text-sm text-muted-foreground">
+   557→              Your election is now activated and ready to go live. Share the voting link below with your voters.
+   558→            </p>
+   559→
+   560→            {/* Subdomain link */}
+   561→            <div className="mt-6 w-full">
+   562→              <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+   563→                Voter voting link
+   564→              </Label>
+   565→              <div className="mt-1.5 flex items-center gap-2 rounded-lg border bg-muted/30 p-3">
+   566→                <LinkIcon className="h-4 w-4 shrink-0 text-primary" />
+   567→                <code className="flex-1 truncate text-sm font-medium">
+   568→                  {typeof window !== "undefined" ? `${window.location.origin}/vote/${electionId}` : `/vote/${electionId}`}
+   569→                </code>
+   570→                <Button
+   571→                  size="sm"
+   572→                  variant="ghost"
+   573→                  onClick={() => {
+   574→                    if (typeof navigator !== "undefined" && navigator.clipboard) {
+   575→                      navigator.clipboard.writeText(`${window.location.origin}/vote/${electionId}`);
+   576→                      toast.success("Link copied!", { description: "Share this with your voters." });
+   577→                    }
+   578→                  }}
+   579→                >
+   580→                  <Copy className="h-3.5 w-3.5" />
+   581→                </Button>
+   582→              </div>
+   583→            </div>
+   584→
+   585→            {/* Org homepage link */}
+   586→            {activation?.organizationId && (
+   587→              <div className="mt-3 w-full">
+   588→                <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+   589→                  Organization homepage
+   590→                </Label>
+   591→                <div className="mt-1.5 flex items-center gap-2 rounded-lg border bg-muted/30 p-3">
+   592→                  <LinkIcon className="h-4 w-4 shrink-0 text-primary" />
+   593→                  <code className="flex-1 truncate text-sm font-medium">
+   594→                    {typeof window !== "undefined" ? `${window.location.origin}/org/${activation.electionId}` : ""}
+   595→                  </code>
+   596→                </div>
+   597→              </div>
+   598→            )}
+   599→
+   600→            <p className="mt-4 text-xs text-muted-foreground">
+   601→              Payment reference: <span className="font-mono font-semibold">{paymentResult?.reference}</span>
+   602→            </p>
+   603→
+   604→            <div className="mt-6 flex gap-3">
+   605→              <Button variant="outline" onClick={() => setShowCelebration(false)}>
+   606→                Close
+   607→              </Button>
+   608→              <Button asChild>
+   609→                <a href={`/vote/${electionId}`} target="_blank" rel="noopener">
+   610→                  Go to election
+   611→                  <ArrowRight className="ml-1 h-4 w-4" />
+   612→                </a>
+   613→              </Button>
+   614→            </div>
+   615→          </motion.div>
+   616→        </DialogContent>
+   617→      </Dialog>
+   618→    </ElectionShell>
+   619→  );
+   620→}
+   621→
+   622→function Row({
+   623→  icon: Icon,
+   624→  label,
+   625→  value,
+   626→  highlight,
+   627→}: {
+   628→  icon: React.ComponentType<{ className?: string }>;
+   629→  label: string;
+   630→  value: React.ReactNode;
+   631→  highlight?: boolean;
+   632→}) {
+   633→  return (
+   634→    <div
+   635→      className={cn(
+   636→        "flex items-center justify-between gap-2 rounded-lg px-3 py-2",
+   637→        highlight ? "bg-primary/5" : "bg-muted/30"
+   638→      )}
+   639→    >
+   640→      <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+   641→        <Icon className="h-3.5 w-3.5" />
+   642→        {label}
+   643→      </span>
+   644→      <span className="text-right text-sm font-medium">{value}</span>
+   645→    </div>
+   646→  );
+   647→}
+   648→

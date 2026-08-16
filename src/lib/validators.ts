@@ -123,6 +123,7 @@ export const negotiationRequestSchema = z.object({
   contactName: z.string().min(2).max(120),
   contactEmail: z.string().email(),
   contactPhone: z.string().max(40).optional().nullable(),
+  preferredResponseChannel: z.enum(["WHATSAPP", "PHONE", "EMAIL"]).optional().nullable(),
   message: z.string().max(5000).optional().nullable(),
   proposedAmount: z.number().int().min(0).optional().nullable(),
 });

@@ -43,6 +43,7 @@ import {
   Loader2,
   ShieldCheck,
   ShieldOff,
+  Trash2,
   X,
 } from "lucide-react";
 import {
@@ -147,6 +148,22 @@ export default function UsersPage() {
       prev.map((x) => (x.id === u.id ? { ...x, isActive: !u.isActive } : x))
     );
     toast.success(`${u.name} ${u.isActive ? "deactivated" : "activated"}`);
+  }
+
+  async function removeUser(u: AdminUserDTO) {
+    const ok = window.confirm(
+      `Remove ${u.name}?\n\nThis will permanently remove them from the organization. Their data will be anonymized and the audit trail preserved. This action cannot be undone.`
+    );
+    if (!ok) return;
+    setSavingId(u.id);
+    const res = await apiFetch(`/api/admin/users/${u.id}`, { method: "DELETE" });
+    setSavingId(null);
+    if (!res.success) {
+      toast.error("Could not remove member", { description: res.error?.message });
+      return;
+    }
+    setUsers((prev) => prev.filter((x) => x.id !== u.id));
+    toast.success(`${u.name} removed`, { description: "Member access revoked." });
   }
 
   return (
@@ -308,6 +325,19 @@ export default function UsersPage() {
                             <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                           ) : (
                             <ShieldOff className="h-4 w-4 text-muted-foreground" />
+                          )}
+                          {!isSelf && u.role !== "ORG_OWNER" && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              onClick={() => removeUser(u)}
+                              disabled={savingId === u.id}
+                              aria-label={`Remove ${u.name}`}
+                              title="Remove member permanently"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
                           )}
                         </div>
                       </TableCell>

@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { VoterProgress } from "@/components/shared/voter-progress";
+import { SupportChatWidget } from "@/components/shared/support-chat-widget";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 
@@ -258,6 +259,9 @@ function ReceiptInner() {
       <p className="text-center text-xs text-muted-foreground">
         Ballot cast {formatDate(new Date())}
       </p>
+
+      {/* Floating support chat (AI only on receipt page) */}
+      <SupportChatWidget electionId={electionId} />
     </div>
   );
 }

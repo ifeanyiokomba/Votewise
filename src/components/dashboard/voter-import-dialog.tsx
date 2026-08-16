@@ -75,13 +75,13 @@ interface VoterImportDialogProps {
 }
 
 const TEMPLATE_HEADERS =
-  "name,matricNumber,department,faculty,level,phone,email\n";
+  "firstName,lastName,matricNumber,department,faculty,level,phone,email\n";
 
 function downloadTemplate() {
   const sampleRows = [
-    "Ada Okafor,UNIZIK/2020/1000,Computer Science,Engineering,300,+2348012340001,ada@unizik.edu.ng",
-    "Bola Adeyemi,UNIZIK/2020/1001,Electrical Engineering,Engineering,300,+2348012340002,bola@unizik.edu.ng",
-    "Chidi Eze,UNIZIK/2020/1002,Civil Engineering,Engineering,200,+2348012340003,chidi@unizik.edu.ng",
+    "Ada,Okafor,UNIZIK/2020/1000,Computer Science,Engineering,300,+2348012340001,ada@unizik.edu.ng",
+    "Bola,Adeyemi,UNIZIK/2020/1001,Electrical Engineering,Engineering,300,+2348012340002,bola@unizik.edu.ng",
+    "Chidi,Eze,UNIZIK/2020/1002,Civil Engineering,Engineering,200,+2348012340003,chidi@unizik.edu.ng",
   ];
   const csv = TEMPLATE_HEADERS + sampleRows.join("\n") + "\n";
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -214,7 +214,10 @@ export function VoterImportDialog({
                 <div>
                   <p className="text-sm font-medium">Need a template?</p>
                   <p className="text-xs text-muted-foreground">
-                    Columns: name, matricNumber, department, faculty, level, phone, email
+                    Columns: <span className="font-mono">firstName, lastName, matricNumber, department, faculty, level, phone, email</span>
+                  </p>
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    First name and last name are separate columns. Combined &quot;name&quot; is also accepted as a fallback.
                   </p>
                 </div>
               </div>

@@ -22,7 +22,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Separator } from "@/components/ui/separator";
 import {
   Card,
   CardHeader,
@@ -38,7 +37,6 @@ import {
   CollapsibleContent,
 } from "@/components/ui/collapsible";
 import { PasswordInput } from "@/components/shared/password-input";
-import { GoogleAuthButton } from "@/components/shared/google-auth-button";
 
 type DemoAccount = { label: string; email: string; password: string };
 
@@ -51,7 +49,7 @@ const DEMO_ACCOUNTS: DemoAccount[] = [
   {
     label: "Platform Admin",
     email: "admin@votewise.com.ng",
-    password: "Admin@12345",
+    password: "Ntaokomba91615",
   },
 ];
 
@@ -87,21 +85,11 @@ function LoginForm() {
   const [error, setError] = React.useState<string | null>(null);
   const [demoOpen, setDemoOpen] = React.useState(false);
 
-  // Check for error query params from Google auth or other redirects
+  // Check for error query params from redirects
   React.useEffect(() => {
     const errParam = searchParams.get("error");
     if (errParam) {
-      const messages: Record<string, string> = {
-        google_not_configured: "Google sign-in is not configured. Use email/password instead.",
-        google_auth_cancelled: "Google sign-in was cancelled.",
-        google_auth_failed: "Google authentication failed. Please try again.",
-        google_token_failed: "Could not retrieve Google access token.",
-        google_profile_failed: "Could not retrieve your Google profile.",
-        google_no_email: "Your Google account has no email address.",
-        google_admin_blocked: "Google sign-in is not available for admin accounts.",
-        google_callback_error: "An error occurred during Google sign-in.",
-      };
-      setError(messages[errParam] ?? "Sign-in error. Please try again.");
+      setError("Sign-in error. Please try again.");
     }
   }, [searchParams]);
 
@@ -267,18 +255,6 @@ function LoginForm() {
         </form>
 
         <div className="mt-6">
-          <div className="relative">
-            <Separator />
-            <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
-              or continue with
-            </span>
-          </div>
-
-          {/* Google auth — not shown for platform admin login (admin.votewise.com.ng or ?admin=1) */}
-          {typeof window !== "undefined" && !window.location.hostname.startsWith("admin.") && !searchParams.get("admin") && (
-            <GoogleAuthButton className="mt-4" />
-          )}
-
           <Collapsible open={demoOpen} onOpenChange={setDemoOpen} className="mt-4">
             <CollapsibleTrigger asChild>
               <Button

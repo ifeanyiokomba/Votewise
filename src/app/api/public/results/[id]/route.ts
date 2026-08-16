@@ -17,6 +17,7 @@ export async function GET(_req: Request, { params }: Params) {
     // Parse result visibility setting from election config
     const config = safeJsonParse<Record<string, unknown>>(election.config, {});
     const resultVisibility = (config.resultVisibility as string) ?? "PUBLISHED_ONLY";
+    const voterTemplate = (config.voterTemplate as string) ?? "classic";
 
     // Determine if results should be visible based on the visibility mode:
     // - LIVE: Show real-time results while voting is LIVE (no candidate breakdown shown publicly,
@@ -47,6 +48,7 @@ export async function GET(_req: Request, { params }: Params) {
         published: false,
         status: election.status,
         resultVisibility,
+        voterTemplate,
         electionName: election.name,
         electionId: election.id,
       });
@@ -62,6 +64,7 @@ export async function GET(_req: Request, { params }: Params) {
         published: true,
         live: true,
         resultVisibility,
+        voterTemplate,
         election: {
           id: election.id,
           name: election.name,
@@ -84,6 +87,7 @@ export async function GET(_req: Request, { params }: Params) {
       published: true,
       live: false,
       resultVisibility,
+      voterTemplate,
       election: {
         id: election.id,
         name: election.name,

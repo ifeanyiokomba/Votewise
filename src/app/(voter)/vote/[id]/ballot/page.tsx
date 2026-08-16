@@ -46,6 +46,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { VoterProgress } from "@/components/shared/voter-progress";
+import { SupportChatWidget } from "@/components/shared/support-chat-widget";
 import { Skeleton } from "@/components/ui/skeleton";
 
 type Candidate = {
@@ -650,6 +651,14 @@ function BallotInner() {
           </Dialog>
         </div>
       </div>
+
+      {/* Floating support chat */}
+      {voterId && (
+        <SupportChatWidget
+          electionId={electionId}
+          voter={{ voterId, voterName: `Voter ${voterId.slice(-6)}`, electionId }}
+        />
+      )}
     </div>
   );
 }

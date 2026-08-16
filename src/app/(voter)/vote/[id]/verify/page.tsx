@@ -35,6 +35,7 @@ import {
   InputOTPSeparator,
 } from "@/components/ui/input-otp";
 import { VoterProgress } from "@/components/shared/voter-progress";
+import { SupportChatWidget } from "@/components/shared/support-chat-widget";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
 
@@ -502,6 +503,14 @@ function VerifyInner() {
           Votewise will never ask for your code over the phone or by email.
         </span>
       </div>
+
+      {/* Floating support chat — voter can talk to AI or live agent */}
+      {voterId && (
+        <SupportChatWidget
+          electionId={electionId}
+          voter={{ voterId, voterName: `Voter ${voterId.slice(-6)}`, electionId }}
+        />
+      )}
     </div>
   );
 }

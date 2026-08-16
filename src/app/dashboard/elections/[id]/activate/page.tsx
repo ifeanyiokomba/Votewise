@@ -89,11 +89,15 @@ export default function ActivatePage({
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  const [preferredResponseChannel, setPreferredResponseChannel] = useState<"EMAIL" | "WHATSAPP" | "PHONE">("EMAIL");
   const [message, setMessage] = useState("");
   const [proposedAmount, setProposedAmount] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [negotiationSent, setNegotiationSent] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [orgSlug, setOrgSlug] = useState<string | null>(null);
+  const [orgName, setOrgName] = useState<string | null>(null);
+  const [hasAutoOpened, setHasAutoOpened] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -106,7 +110,7 @@ export default function ActivatePage({
     if (!electionId) return;
     setLoading(true);
     setError(null);
-    const res = await apiFetch<ActivationResponse>(
+    const res = await apiFetch<ActivationResponse & { organization?: { slug: string; name: string; domain?: string | null; domainStatus?: string | null } | null }>(
       `/api/elections/${electionId}/activation`
     );
     setLoading(false);
@@ -115,7 +119,21 @@ export default function ActivatePage({
       return;
     }
     setActivation(res.data.activation);
-  }, [electionId]);
+    if (res.data.organization) {
+      setOrgSlug(res.data.organization.slug);
+      setOrgName(res.data.organization.name);
+    }
+    // Auto-open the celebration when activation has been approved
+    // (either via payment or via negotiation approval by the platform admin)
+    // and we haven't shown it yet for this session.
+    const isActivated =
+      res.data.activation.status === "MANUALLY_APPROVED" ||
+      res.data.activation.status === "PAYMENT_VERIFIED";
+    if (isActivated && !hasAutoOpened) {
+      setShowCelebration(true);
+      setHasAutoOpened(true);
+    }
+  }, [electionId, hasAutoOpened]);
 
   useEffect(() => {
     let cancelled = false;
@@ -168,6 +186,7 @@ export default function ActivatePage({
       contactName: contactName.trim(),
       contactEmail: contactEmail.trim(),
       contactPhone: contactPhone.trim() || null,
+      preferredResponseChannel,
       message: message.trim() || null,
       proposedAmount: proposedAmount ? Number(proposedAmount) : null,
     };
@@ -461,6 +480,44 @@ export default function ActivatePage({
                               placeholder="Tell us about your event, expected voter count, timeline, budget constraints…"
                             />
                           </div>
+
+                          {/* Preferred response channel */}
+                          <div className="grid gap-1.5">
+                            <Label>Preferred response channel</Label>
+                            <p className="text-[11px] text-muted-foreground">
+                              How should the Votewise platform admin respond to your request? You can also
+                              include your details below for an easy activation call.
+                            </p>
+                            <div className="grid grid-cols-3 gap-2">
+                              {([
+                            { value: "EMAIL", label: "Email", icon: "📧", desc: "Reach me by email" },
+                            { value: "WHATSAPP", label: "WhatsApp", icon: "💬", desc: "Chat on WhatsApp" },
+                            { value: "PHONE", label: "Phone call", icon: "📞", desc: "Call me directly" },
+                          ] as const).map((opt) => (
+                                <button
+                                  key={opt.value}
+                                  type="button"
+                                  onClick={() => setPreferredResponseChannel(opt.value)}
+                                  className={cn(
+                                    "flex flex-col items-start gap-0.5 rounded-lg border p-3 text-left transition-all",
+                                    preferredResponseChannel === opt.value
+                                      ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                                      : "border-border hover:border-primary/40"
+                                  )}
+                                >
+                                  <span className="text-base">{opt.icon}</span>
+                                  <span className="text-xs font-semibold">{opt.label}</span>
+                                  <span className="text-[10px] text-muted-foreground">{opt.desc}</span>
+                                </button>
+                              ))}
+                            </div>
+                            {preferredResponseChannel !== "EMAIL" && !contactPhone.trim() && (
+                              <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                                Please include your phone number above so the platform admin can reach you via {preferredResponseChannel === "WHATSAPP" ? "WhatsApp" : "phone"}.
+                              </p>
+                            )}
+                          </div>
+
                           <Button type="submit" size="lg" disabled={submitting}>
                             {submitting ? (
                               <>
@@ -557,7 +614,7 @@ export default function ActivatePage({
               Your election is now activated and ready to go live. Share the voting link below with your voters.
             </p>
 
-            {/* Subdomain link */}
+            {/* Subdomain link — uses the org's dedicated subdomain */}
             <div className="mt-6 w-full">
               <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Voter voting link
@@ -565,14 +622,17 @@ export default function ActivatePage({
               <div className="mt-1.5 flex items-center gap-2 rounded-lg border bg-muted/30 p-3">
                 <LinkIcon className="h-4 w-4 shrink-0 text-primary" />
                 <code className="flex-1 truncate text-sm font-medium">
-                  {typeof window !== "undefined" ? `${window.location.origin}/vote/${electionId}` : `/vote/${electionId}`}
+                  {orgSlug ? `${orgSlug}.${process.env.NEXT_PUBLIC_APP_DOMAIN ?? "votewise.com.ng"}/vote/${electionId}` : `${typeof window !== "undefined" ? window.location.origin : ""}/vote/${electionId}`}
                 </code>
                 <Button
                   size="sm"
                   variant="ghost"
                   onClick={() => {
                     if (typeof navigator !== "undefined" && navigator.clipboard) {
-                      navigator.clipboard.writeText(`${window.location.origin}/vote/${electionId}`);
+                      const link = orgSlug
+                        ? `${orgSlug}.${process.env.NEXT_PUBLIC_APP_DOMAIN ?? "votewise.com.ng"}/vote/${electionId}`
+                        : `${window.location.origin}/vote/${electionId}`;
+                      navigator.clipboard.writeText(link);
                       toast.success("Link copied!", { description: "Share this with your voters." });
                     }
                   }}
@@ -580,10 +640,15 @@ export default function ActivatePage({
                   <Copy className="h-3.5 w-3.5" />
                 </Button>
               </div>
+              <p className="mt-1.5 text-[10px] text-muted-foreground">
+                {orgSlug
+                  ? <>Dedicated subdomain: <span className="font-mono font-medium">{orgSlug}.{process.env.NEXT_PUBLIC_APP_DOMAIN ?? "votewise.com.ng"}</span> (requires DNS configuration). Falls back to <span className="font-mono">/vote/&lt;election-id&gt;</span> on this domain.</>
+                  : "Share this link with your voters."}
+              </p>
             </div>
 
             {/* Org homepage link */}
-            {activation?.organizationId && (
+            {orgSlug && (
               <div className="mt-3 w-full">
                 <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Organization homepage
@@ -591,8 +656,21 @@ export default function ActivatePage({
                 <div className="mt-1.5 flex items-center gap-2 rounded-lg border bg-muted/30 p-3">
                   <LinkIcon className="h-4 w-4 shrink-0 text-primary" />
                   <code className="flex-1 truncate text-sm font-medium">
-                    {typeof window !== "undefined" ? `${window.location.origin}/org/${activation.electionId}` : ""}
+                    {typeof window !== "undefined" ? `${window.location.origin}/org/${orgSlug}` : `/org/${orgSlug}`}
                   </code>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      if (typeof navigator !== "undefined" && navigator.clipboard) {
+                        const link = `${window.location.origin}/org/${orgSlug}`;
+                        navigator.clipboard.writeText(link);
+                        toast.success("Homepage link copied!");
+                      }
+                    }}
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
               </div>
             )}

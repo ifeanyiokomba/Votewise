@@ -478,24 +478,25 @@ model ElectionPayment {
 }
 
 model NegotiationRequest {
-  id               String            @id @default(cuid())
-  activationId     String            @unique
-  organizationId   String
-  electionId       String
-  status           NegotiationStatus @default(REQUESTED)
-  voterCount       Int
-  standardPrice    Int
-  negotiatedAmount Int?
-  contactName      String
-  contactEmail     String
-  contactPhone     String?
-  message          String?
-  internalNotes    String?
-  assignedToId     String?
-  settlementRef    String?
-  decidedAt        DateTime?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  id                     String            @id @default(cuid())
+  activationId           String            @unique
+  organizationId         String
+  electionId             String
+  status                 NegotiationStatus @default(REQUESTED)
+  voterCount             Int
+  standardPrice          Int
+  negotiatedAmount       Int?
+  contactName            String
+  contactEmail           String
+  contactPhone           String?
+  preferredResponseChannel String?          // "WHATSAPP" | "PHONE" | "EMAIL"
+  message                String?
+  internalNotes          String?
+  assignedToId           String?
+  settlementRef          String?
+  decidedAt              DateTime?
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
 
   activation    CommercialActivation @relation(fields: [activationId], references: [id], onDelete: Cascade)
   organization  Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)

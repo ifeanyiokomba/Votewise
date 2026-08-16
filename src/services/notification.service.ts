@@ -125,4 +125,15 @@ export class NotificationService {
     await this.dispatch(notification.id, { code: params.code });
     return notification;
   }
+
+  /**
+   * Convenience: queue + immediately dispatch a single notification.
+   * Use this for ad-hoc notifications (e.g. negotiation request emails
+   * to the platform admin) without going through the OTP flow.
+   */
+  static async send(input: SendNotificationInput) {
+    const notification = await this.queue(input);
+    await this.dispatch(notification.id);
+    return notification;
+  }
 }

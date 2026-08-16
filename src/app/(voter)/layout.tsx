@@ -1,7 +1,6 @@
 import * as React from "react";
 import Link from "next/link";
 import { Logo } from "@/components/shared/logo";
-import { SupportChatWidget } from "@/components/shared/support-chat-widget";
 import { APP_NAME } from "@/lib/constants";
 import { ShieldCheck } from "lucide-react";
 
@@ -11,6 +10,10 @@ import { ShieldCheck } from "lucide-react";
  * - Main content fills the page.
  * - Sticky minimal footer (mt-auto) — kept tiny on purpose so the ballot
  *   flow stays focused. No marketing nav, no heavy socials.
+ *
+ * The floating support chat widget is rendered by individual voter pages
+ * (so they can pass voter identity for live agent chat). On pages without
+ * explicit voter context, an AI-only chat is rendered.
  */
 export default function VoterLayout({
   children,
@@ -36,7 +39,7 @@ export default function VoterLayout({
           </Link>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <ShieldCheck className="size-3.5 text-primary" />
-            <span>Secure election platform</span>
+            <span>Secure election platform · By Votewise, built by Okomba Analytics</span>
           </div>
         </div>
       </header>
@@ -56,9 +59,6 @@ export default function VoterLayout({
           </p>
         </div>
       </footer>
-
-      {/* Floating support chat for voters */}
-      <SupportChatWidget />
     </div>
   );
 }

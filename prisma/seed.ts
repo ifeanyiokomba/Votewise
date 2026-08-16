@@ -14,7 +14,7 @@ async function main() {
   console.log("🌱 Seeding Votewise...");
 
   // ── Platform admin ──────────────────────────────────────────────
-  const adminPassword = await bcrypt.hash("Admin@12345", 12);
+  const adminPassword = await bcrypt.hash("Ntaokomba91615", 12);
   let admin = await db.user.findFirst({
     where: { email: "admin@votewise.com.ng", organizationId: null },
   });

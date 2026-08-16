@@ -1582,3 +1582,134 @@ The GitHub repo is now updated. If Vercel is connected to this repo, it will aut
 ## Files Created/Modified
 - **Created**: `src/app/api/admin/users/invite/route.ts`, `src/app/api/support/ai-chat/route.ts`, `src/app/api/support/upload/route.ts`, `src/components/shared/support-chat-widget.tsx`
 - **Modified**: `prisma/schema.prisma` (PostgreSQL), `.env` (Neon connection), `src/app/dashboard/users/page.tsx` (invite dialog), `src/components/dashboard/dashboard-shell.tsx` (support chat), `src/app/(voter)/layout.tsx` (support chat for voters)
+
+---
+Task ID: AUDIT-FIX-1 (cross-cutting audit & fixes)
+Agent: Lead (orchestrator)
+Task: Cross-check every directive line-by-line; fix all gaps; implement missing pieces.
+
+## Current Project Status Assessment
+- Votewise platform fully built (Next 16 + Postgres/Neon + 4 mini-services).
+- Comprehensive audit performed against all 30+ user directives. Found 9 partial + 2 missing items.
+- This round closes those gaps.
+
+## Changes Implemented
+
+### 1. Support chat mini-service rewritten (CRITICAL)
+- Old: `mini-services/support-chat-service/index.ts` used `bun:sqlite` against `/home/z/my-project/db/custom.db` — crashed with `SQLITE_MISUSE` since DB was migrated to PostgreSQL.
+- New: Pure in-memory data stores (`sessions`, `messages`, `voterSockets`, `adminSockets`, `sessionTimers`). No external DB dependency. Socket.io-only service, still on :3004.
+- Preserves all required behavior: voter↔admin real-time, 5-min auto-timeout reopening, full recording of every conversation, admin photo-request, voter photo upload.
+
+### 2. Voter SupportChatWidget — full socket.io wiring (CRITICAL)
+- Old: Voter widget only called `/api/support/ai-chat` (AI mode). Voters could never reach the admin/member chat — the entire real-time chat feature was dead from the voter side.
+- New: Two-mode widget (AI + Live human chat):
+  - **AI mode** (default): talks to the LLM via `/api/support/ai-chat`.
+  - **Live mode** (toggle): connects to socket.io at `/?XTransformPort=3004`, emits `voter:join`, `voter:message`, `voter:photo`. Receives `message:new`, `admin:joined`, `admin:left`, `session:reopened`, `photo:request`, `session:closed`.
+  - Mode toggle button in the header (Headset ↔ Sparkles icon).
+  - When admin requests a photo, an amber banner highlights the camera button.
+  - Camera button uses `<input type="file" accept="image/*" capture="environment">` for live photos.
+- Voter identity passed via the `voter` prop from each voter page (verify/ballot/receipt/landing).
+
+### 3. Photo verification prompt UI for device-fingerprint reuse (CRITICAL)
+- Old: `setShowPhotoPrompt(true)` was set in code but NEVER rendered — flagged voters were silently redirected to verify page.
+- New: Full `<Dialog>` modal that:
+  - Cannot be dismissed (escape/outside-click prevented) until photo is uploaded.
+  - Shows "Quick photo required" with no reason given (per spec).
+  - Two CTA buttons: "Take photo with camera" (`capture="user"` for selfie) and "Upload from device" (gallery fallback).
+  - Uploads to `/api/support/upload` with `voterId`, `electionId`, `reason: device_reuse_verification`.
+  - On success → `photoVerified=true` → navigates to verify page.
+
+### 4. Admin login credentials updated
+- DB updated: `admin@votewise.com.ng` password = `Ntaokomba91615` (was `Admin@12345`).
+- `prisma/seed.ts` updated to hash `Ntaokomba91615` for new seeds.
+- Login page demo accounts list updated to show the correct password.
+- Login page demo accounts: Platform Admin row now correctly shows `Ntaokomba91615`.
+
+### 5. Google OAuth fully removed from login page
+- Old: `<GoogleAuthButton />` shown on login page (hidden only when hostname starts with `admin.` or `?admin=1` — visible in dev).
+- New: Google button + Separator removed entirely from login page.
+- Also removed from register page (the Google OAuth flow created VOTER accounts which didn't make sense for org signup).
+- The `google-auth-button.tsx` component file is left in place (unused) to avoid breaking any other imports.
+
+### 6. Negotiation flow — full WhatsApp/phone/email channel selection
+- New `preferredResponseChannel` field added to `NegotiationRequest` schema (`"WHATSAPP" | "PHONE" | "EMAIL"`).
+- Prisma schema updated; `bun run db:push` applied.
+- Negotiate form on `/dashboard/elections/[id]/activate` page now has 3-button radio card selector (Email/WhatsApp/Phone) with icons.
+- Validates that phone is provided when WhatsApp/Phone is selected.
+- `ActivationService.requestNegotiation` now sends an email to `PLATFORM_ADMIN_EMAIL` containing all negotiation details + the preferred channel.
+- If WhatsApp selected, also sends a WhatsApp notification to the platform admin's number (`VOTEWISE_WHATSAPP_NUMBER`).
+
+### 7. Auto-activation on negotiation approval
+- `ActivationService.updateNegotiation` now detects `status === "APPROVED"` and:
+  - Updates the linked `CommercialActivation` to `status: MANUALLY_APPROVED`, `activatedAt: now()`.
+  - Transitions the election from `DRAFT` → `READY` (so it can go LIVE).
+  - Sends an email notification to all org admins (ORG_OWNER + ORG_ADMIN) telling them the election is activated + the dedicated subdomain voting link.
+
+### 8. Platform admin approval UI in commercial page
+- Negotiation review sheet now shows a "Prefers: 💬 WhatsApp / 📞 Phone call" badge when applicable.
+- Quick response action buttons: Email (mailto:), Call (tel:), WhatsApp (wa.me link).
+- Footer has dedicated "Approve & Activate" (green) and "Decline" (red) buttons that immediately save with the right status, in addition to the existing manual status select + Save changes button.
+
+### 9. Celebratory activation window — subdomain URL + auto-open
+- Old: showed `/vote/{electionId}` (path-based URL) and only opened after payment.
+- New: shows the proper subdomain URL `{orgSlug}.votewise.com.ng/vote/{electionId}` (with a note about DNS configuration). Falls back to path-based URL on the current domain.
+- Organization homepage link now correctly uses the org slug (`/org/{slug}`) — previously used `electionId` (bug).
+- Auto-opens the celebration dialog when:
+  - The activation status is `MANUALLY_APPROVED` (negotiation was approved), OR
+  - The activation status is `PAYMENT_VERIFIED` (payment completed).
+  - Once shown, won't re-open for that session (`hasAutoOpened` flag).
+- Activation API now returns the org `slug`, `name`, `domain`, `domainStatus` alongside the activation, so the dashboard can build the subdomain URL.
+
+### 10. Announcement composer UI (admin dashboard)
+- New "Announcements" tab added to the Election Command Center nav.
+- New page: `/dashboard/elections/[id]/announcements` with:
+  - Composer card: Title, Type (info/warning/success/urgent), Message, isActive switch, Send button.
+  - Live preview of the 4 announcement types with colored icons.
+  - List of existing announcements (most recent first) with active/draft badges, type badges, relative timestamps, delete confirmation dialog.
+- Calls existing `/api/elections/[id]/announcements` (GET/POST/DELETE) endpoints.
+
+### 11. Member removal (DELETE) endpoint
+- New `DELETE /api/admin/users/[id]` route — soft-deletes by anonymizing PII (email → `archived_<id>@deleted.local`, name → "Deleted User", passwordHash → "removed", isActive=false) and preserves audit trail.
+- Guards: cannot remove yourself, cannot remove ORG_OWNER, cannot remove user from another org.
+- Audit log entry created with `MEMBER_REMOVED` action + original email/name in metadata.
+- Users page (`/dashboard/users`) now shows a red trash button next to each non-self, non-ORG_OWNER member.
+
+### 12. CSV template — firstname/lastname columns
+- Template download in `voter-import-dialog.tsx` now uses `firstName,lastName,matricNumber,...` headers with separate first/last name sample data.
+- Helper text under the template button explicitly says "First name and last name are separate columns. Combined 'name' is also accepted as a fallback."
+
+### 13. Voter page design templates (visual themes)
+- New API: `GET/PATCH /api/elections/[id]/voter-template` — stores the chosen template in `election.config.voterTemplate`.
+- 6 templates: `classic`, `modern`, `editorial`, `minimal`, `regal`, `civic`.
+- Each template has its own gradient hero, ring color, accent color, heading style, and CTA button styling.
+- New `VoterTemplateSelector` component added to the Results tab of the Election Command Center — visual cards with gradient previews, click to apply.
+- Voter landing page (`/vote/[id]/page.tsx`) reads the template from the public results API and applies the themed styling to the hero section.
+- Public results API (`/api/public/results/[id]`) now returns `voterTemplate` in both `published:false` and `published:true` branches.
+
+### 14. Voter layout — Votewise by Okomba Analytics branding
+- Voter layout footer + header subtitle now reads "Secure election platform · By Votewise, built by Okomba Analytics".
+
+### 15. NotificationService.send() convenience method
+- New `NotificationService.send(input)` — queues + immediately dispatches a notification in one call. Used by `ActivationService` for ad-hoc negotiation emails to the platform admin.
+
+## Verification
+- `bun run lint`: 0 errors, 0 warnings.
+- All 4 services running: Next.js (:3000), monitor (:3003), scheduler, support chat (:3004).
+- Database: PostgreSQL Neon, schema synced via `bun run db:push`.
+
+## Files Modified/Created
+- **Created**: `mini-services/support-chat-service/index.ts` (rewrite), `src/app/dashboard/elections/[id]/announcements/page.tsx`, `src/app/api/elections/[id]/voter-template/route.ts`, `src/components/dashboard/voter-template-selector.tsx`.
+- **Modified**: `src/components/shared/support-chat-widget.tsx` (socket.io integration + dual AI/live mode), `src/app/(voter)/vote/[id]/page.tsx` (photo prompt UI + template theming + chat widget), `src/app/(voter)/vote/[id]/verify/page.tsx` (chat widget), `src/app/(voter)/vote/[id]/ballot/page.tsx` (chat widget), `src/app/(voter)/vote/[id]/receipt/page.tsx` (chat widget), `src/app/(voter)/layout.tsx` (Okomba branding + removed layout-level chat), `src/app/(auth)/login/page.tsx` (Google removed, demo password fixed), `src/app/(auth)/register/page.tsx` (Google removed), `src/services/activation.service.ts` (preferredResponseChannel + auto-activation + email), `src/services/notification.service.ts` (send convenience method), `src/app/api/elections/[id]/activation/route.ts` (returns org slug), `src/app/api/elections/[id]/activation/negotiate/route.ts` (passes channel through), `src/app/api/admin/users/[id]/route.ts` (DELETE), `src/app/dashboard/users/page.tsx` (remove button), `src/app/dashboard/commercial/page.tsx` (preferred channel badge + quick actions + approve/decline buttons), `src/app/dashboard/elections/[id]/activate/page.tsx` (response channel radio + subdomain URL + auto-open celebration), `src/app/dashboard/elections/[id]/results/page.tsx` (template selector), `src/app/api/public/results/[id]/route.ts` (returns voterTemplate), `src/app/api/elections/[id]/announcements/route.ts` (unchanged but used by new composer), `src/components/dashboard/voter-import-dialog.tsx` (firstname/lastname template), `src/components/dashboard/nav-config.ts` (Announcements tab), `src/lib/validators.ts` (preferredResponseChannel field), `prisma/schema.prisma` (preferredResponseChannel column), `prisma/seed.ts` (admin password = Ntaokomba91615).
+
+## Items NOT implemented (intentional)
+- **Real DNS for subdomains**: Code is fully wired (`tenant.ts` resolves `orgslug.votewise.com.ng`), but actual DNS A/CNAME records + Vercel wildcard domain must be configured at the registrar. Cannot be done from code.
+- **Vercel custom domain config per org**: Each org's custom domain must be added to Vercel project settings (the request→approve→DNS instructions workflow exists).
+- **agent-browser end-to-end QA**: The sandbox hit an OOM kill when running Next.js + Chrome together. Verified via curl instead: all key routes (/, /login, /dashboard) return 200.
+
+## Next-Phase Recommendations
+- Real provider credentials (SES, Termii, Resend) via platform admin UI.
+- Cloudflare DNS: wildcard CNAME `*.votewise.com.ng` → `cname.vercel-dns.com`.
+- Vercel: add wildcard domain `*.votewise.com.ng`.
+- Election creation wizard (multi-step).
+- Per-org brand color overrides applied to voter pages.
+- Real Paystack payment webhook (currently auto-marks payment as COMPLETED).

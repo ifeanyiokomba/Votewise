@@ -17,6 +17,7 @@ import {
   Vote,
   ReceiptText,
   ArrowRight,
+  Sparkles,
 } from "lucide-react";
 
 import { apiFetch } from "@/lib/api-fetch";
@@ -32,10 +33,20 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { VoterProgress } from "@/components/shared/voter-progress";
 import { AnnouncementBanner } from "@/components/shared/announcement-banner";
+import { SupportChatWidget } from "@/components/shared/support-chat-widget";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Camera, ShieldAlert, Upload } from "lucide-react";
 
 type ElectionPublicInfo =
   | {
@@ -43,6 +54,7 @@ type ElectionPublicInfo =
       status: string;
       electionName: string;
       electionId: string;
+      voterTemplate?: string;
     }
   | {
       published: true;
@@ -54,7 +66,56 @@ type ElectionPublicInfo =
         endTime: string | null;
       };
       results: unknown;
+      voterTemplate?: string;
     };
+
+const TEMPLATE_STYLES: Record<
+  string,
+  { heroGradient: string; heroRing: string; bgAccent: string; headingClass: string; ctaClass: string }
+> = {
+  classic: {
+    heroGradient: "from-primary/5 via-accent/30 to-background",
+    heroRing: "bg-primary/10",
+    bgAccent: "bg-primary/10",
+    headingClass: "tracking-tight",
+    ctaClass: "",
+  },
+  modern: {
+    heroGradient: "from-fuchsia-500/10 via-pink-500/5 to-violet-500/10",
+    heroRing: "bg-fuchsia-500/15",
+    bgAccent: "bg-fuchsia-500/10",
+    headingClass: "tracking-tight bg-gradient-to-r from-fuchsia-600 to-pink-600 bg-clip-text text-transparent",
+    ctaClass: "bg-gradient-to-r from-fuchsia-600 to-pink-600 hover:from-fuchsia-700 hover:to-pink-700",
+  },
+  editorial: {
+    heroGradient: "from-amber-500/10 via-orange-500/5 to-red-500/10",
+    heroRing: "bg-amber-500/15",
+    bgAccent: "bg-amber-500/10",
+    headingClass: "font-serif tracking-tight",
+    ctaClass: "bg-amber-700 hover:bg-amber-800",
+  },
+  minimal: {
+    heroGradient: "from-zinc-100 via-zinc-50 to-white dark:from-zinc-900 dark:via-zinc-950 dark:to-black",
+    heroRing: "bg-zinc-300 dark:bg-zinc-700",
+    bgAccent: "bg-zinc-200 dark:bg-zinc-800",
+    headingClass: "tracking-tight font-light",
+    ctaClass: "",
+  },
+  regal: {
+    heroGradient: "from-amber-900/20 via-zinc-900/30 to-amber-900/10 dark:from-amber-900/40 dark:via-black dark:to-amber-950/40",
+    heroRing: "bg-amber-500/20",
+    bgAccent: "bg-amber-500/10",
+    headingClass: "tracking-tight text-amber-700 dark:text-amber-400 font-serif",
+    ctaClass: "bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-700 hover:to-yellow-700 text-amber-950",
+  },
+  civic: {
+    heroGradient: "from-sky-700/10 via-blue-700/5 to-indigo-800/10",
+    heroRing: "bg-sky-700/15",
+    bgAccent: "bg-sky-700/10",
+    headingClass: "tracking-tight text-sky-800 dark:text-sky-300",
+    ctaClass: "bg-sky-800 hover:bg-sky-900",
+  },
+};
 
 type VerifySendResponse =
   | {
@@ -123,6 +184,10 @@ function LandingInner() {
   const [showPhotoPrompt, setShowPhotoPrompt] = React.useState(false);
   const [photoVerified, setPhotoVerified] = React.useState(false);
   const [pendingVoterId, setPendingVoterId] = React.useState<string | null>(null);
+  const [photoUploading, setPhotoUploading] = React.useState(false);
+  const [photoError, setPhotoError] = React.useState<string | null>(null);
+  const photoInputRef = React.useRef<HTMLInputElement>(null);
+  const [voterInfo, setVoterInfo] = React.useState<{ voterId: string; voterName: string } | null>(null);
 
   const reduce = useReducedMotion();
 
@@ -228,7 +293,8 @@ function LandingInner() {
         });
 
         if (deviceRes.success && deviceRes.data?.requirePhoto) {
-          // Device seen before — prompt for live photo before continuing
+          // Device seen before — require a live photo before proceeding.
+          // No reason is given to the voter, per spec.
           setPendingVoterId(data.voterId);
           setShowPhotoPrompt(true);
           setSubmitting(false);
@@ -241,10 +307,10 @@ function LandingInner() {
             );
           } catch { /* ignore */ }
 
-          // Proceed to verify page (OTP was already sent)
-          const params = new URLSearchParams({ voterId: data.voterId });
-          if (data.channel) params.set("channel", data.channel);
-          router.push(`/vote/${electionId}/verify?${params.toString()}`);
+          setVoterInfo({ voterId: data.voterId, voterName: `Voter ${data.voterId.slice(-6)}` });
+          // OTP has already been sent — but do NOT navigate yet. The voter
+          // must upload a live photo before being allowed to proceed to the
+          // verify page. See handlePhotoUpload() below.
           return;
         }
       }
@@ -263,6 +329,8 @@ function LandingInner() {
         // sessionStorage can throw in private mode — ignore.
       }
 
+      setVoterInfo({ voterId: data.voterId, voterName: `Voter ${data.voterId.slice(-6)}` });
+
       const params = new URLSearchParams({
         voterId: data.voterId,
       });
@@ -270,6 +338,43 @@ function LandingInner() {
       router.push(`/vote/${electionId}/verify?${params.toString()}`);
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handlePhotoUpload(file: File) {
+    if (!pendingVoterId) return;
+    setPhotoUploading(true);
+    setPhotoError(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("voterId", pendingVoterId);
+      formData.append("electionId", electionId);
+      formData.append("reason", "device_reuse_verification");
+      const res = await fetch("/api/support/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPhotoVerified(true);
+        setShowPhotoPrompt(false);
+        toast.success("Verification complete", {
+          description: "You can now continue to enter your one-time code.",
+        });
+        // Now navigate to the verify page (OTP was already sent earlier)
+        const voterData = sessionStorage.getItem(`votewise:voter:${electionId}`);
+        const channel = voterData ? (JSON.parse(voterData).channel ?? undefined) : undefined;
+        const params = new URLSearchParams({ voterId: pendingVoterId });
+        if (channel) params.set("channel", channel);
+        router.push(`/vote/${electionId}/verify?${params.toString()}`);
+      } else {
+        setPhotoError(data.error?.message ?? "Upload failed. Please try again.");
+      }
+    } catch {
+      setPhotoError("Network error. Please check your connection and try again.");
+    } finally {
+      setPhotoUploading(false);
     }
   }
 
@@ -304,31 +409,42 @@ function LandingInner() {
       {/* Election announcements from admin */}
       <AnnouncementBanner electionId={electionId} />
 
-      {/* Hero */}
-      <motion.div
-        initial={reduce ? false : { opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45, ease: "easeOut" }}
-        className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/5 via-accent/30 to-background p-6 text-center sm:p-8"
-      >
-        <div className="absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full bg-primary/10 blur-3xl" />
-        <div className="absolute bottom-0 left-1/4 h-24 w-24 translate-y-6 rounded-full bg-chart-2/10 blur-3xl" />
-        <div className="relative">
-          <div className="mb-3 flex justify-center">
-            <StatusBadge status={status} className="text-sm" />
-          </div>
-          <h1 className="text-balance text-2xl font-bold leading-tight tracking-tight sm:text-3xl">
-            {electionName}
-          </h1>
-          <p className="mx-auto mt-2 max-w-md text-balance text-sm text-muted-foreground sm:text-base">
-            {isPublished
-              ? "This election has concluded and the results are now public."
-              : isLive
-                ? "Verify your identity to receive your ballot. Your vote is secret and your choices cannot be traced back to you."
-                : "Welcome. Voting for this election is not currently open."}
-          </p>
-        </div>
-      </motion.div>
+      {/* Hero — themed by org's chosen voter template */}
+      {(() => {
+        const tplId = (info.published ? info.voterTemplate : info.voterTemplate) ?? "classic";
+        const tpl = TEMPLATE_STYLES[tplId] ?? TEMPLATE_STYLES.classic;
+        return (
+          <motion.div
+            initial={reduce ? false : { opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: "easeOut" }}
+            className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br ${tpl.heroGradient} p-6 text-center sm:p-8`}
+          >
+            <div className={`absolute right-0 top-0 h-32 w-32 -translate-y-8 translate-x-8 rounded-full ${tpl.heroRing} blur-3xl`} />
+            <div className="absolute bottom-0 left-1/4 h-24 w-24 translate-y-6 rounded-full bg-chart-2/10 blur-3xl" />
+            <div className="relative">
+              <div className="mb-3 flex justify-center">
+                <StatusBadge status={status} className="text-sm" />
+              </div>
+              <h1 className={`text-balance text-2xl font-bold leading-tight sm:text-3xl ${tpl.headingClass}`}>
+                {electionName}
+              </h1>
+              <p className="mx-auto mt-2 max-w-md text-balance text-sm text-muted-foreground sm:text-base">
+                {isPublished
+                  ? "This election has concluded and the results are now public."
+                  : isLive
+                    ? "Verify your identity to receive your ballot. Your vote is secret and your choices cannot be traced back to you."
+                    : "Welcome. Voting for this election is not currently open."}
+              </p>
+              {tplId !== "classic" && (
+                <div className="mt-3 inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/60 px-3 py-1 text-[10px] text-muted-foreground backdrop-blur">
+                  <Sparkles className="size-3" /> {tplId.charAt(0).toUpperCase() + tplId.slice(1)} theme
+                </div>
+              )}
+            </div>
+          </motion.div>
+        );
+      })()}
 
       {/* Closed / Scheduled / Published states */}
       {!isLive && (
@@ -505,6 +621,81 @@ function LandingInner() {
           One voter, one ballot
         </span>
       </div>
+
+      {/* ─── Photo verification prompt (device reuse) ─── */}
+      <Dialog open={showPhotoPrompt} onOpenChange={(o) => { if (!o && !photoVerified) setShowPhotoPrompt(true); }}>
+        <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <div className="mx-auto mb-2 grid size-14 place-items-center rounded-full bg-amber-100 dark:bg-amber-950">
+              <ShieldAlert className="size-7 text-amber-600 dark:text-amber-400" />
+            </div>
+            <DialogTitle className="text-center text-lg">Quick photo required</DialogTitle>
+            <DialogDescription className="text-center text-sm">
+              Please take a quick photo to continue. This is a routine security step —
+              no further information can be provided. Your photo is encrypted and only
+              viewable by authorized election administrators.
+            </DialogDescription>
+          </DialogHeader>
+
+          {photoError && (
+            <Alert variant="destructive">
+              <AlertCircle className="size-4" />
+              <AlertDescription>{photoError}</AlertDescription>
+            </Alert>
+          )}
+
+          {photoVerified ? (
+            <div className="rounded-lg bg-emerald-50 p-3 text-center text-sm text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+              Verified — redirecting you to the verification page…
+            </div>
+          ) : (
+            <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+              <Button
+                onClick={() => photoInputRef.current?.click()}
+                disabled={photoUploading}
+                className="gap-2"
+                size="lg"
+              >
+                {photoUploading ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />}
+                {photoUploading ? "Uploading…" : "Take photo with camera"}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  // Allow file picker as fallback (gallery)
+                  if (photoInputRef.current) {
+                    photoInputRef.current.removeAttribute("capture");
+                    photoInputRef.current?.click();
+                  }
+                }}
+                disabled={photoUploading}
+                className="gap-2"
+                size="lg"
+              >
+                <Upload className="size-4" /> Upload from device
+              </Button>
+            </DialogFooter>
+          )}
+
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/*"
+            capture="user"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) handlePhotoUpload(f);
+              e.target.value = "";
+              // Restore capture attribute for next time
+              setTimeout(() => photoInputRef.current?.setAttribute("capture", "user"), 100);
+            }}
+            className="hidden"
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Floating support chat (live + AI) ─── */}
+      <SupportChatWidget electionId={electionId} voter={voterInfo ?? undefined} />
     </div>
   );
 }
