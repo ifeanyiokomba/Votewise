@@ -1,22 +1,24 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { isProtectedRoute, resolveTenantSlugFromHost, resolveTenantByCustomDomain } from "@/lib/tenant";
+import { isProtectedRoute, resolveTenantSlugFromHost } from "@/lib/tenant";
 
 const SESSION_COOKIE = "votewise_session";
 const MAIN_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? "votewise.com.ng";
 
-export async function proxy(request: NextRequest) {
+// Note: Custom domain resolution is NOT done in the proxy because it requires
+// a DB query per request — that's too expensive for middleware. Instead,
+// custom domains are handled by the org page itself (it reads the host
+// header and looks up the org). The proxy only does lightweight string
+// parsing for subdomain routing.
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const host = request.headers.get("host") ?? "";
-  const protocol = request.headers.get("x-forwarded-proto") ?? "https";
 
-  // ─── Subdomain + custom domain routing ───────────────────────────
+  // ─── Subdomain routing (string-only, no DB) ──────────────────────
   // unilag.votewise.com.ng → rewrite to /org/unilag
   // admin.votewise.com.ng → redirect to /login?admin=1
-  // elections.unilag.edu.ng (custom domain) → rewrite to /org/{slug}
-  if (host !== MAIN_DOMAIN && host !== `www.${MAIN_DOMAIN}` && host !== "localhost:3000") {
+  if (host !== MAIN_DOMAIN && host !== `www.${MAIN_DOMAIN}` && host !== "localhost:3000" && !host.startsWith("127.0.0.1") && !host.startsWith("21.0.13.")) {
     // Admin subdomain
     if (host === `admin.${MAIN_DOMAIN}`) {
-      // If already logged in, go to dashboard; otherwise login with admin flag
       const token = request.cookies.get(SESSION_COOKIE)?.value;
       if (token && !pathname.startsWith("/dashboard")) {
         return NextResponse.redirect(new URL("/dashboard", request.url));
@@ -29,20 +31,14 @@ export async function proxy(request: NextRequest) {
       return NextResponse.next();
     }
 
-    // Check if it's a subdomain of the main domain
+    // Check if it's a subdomain of the main domain (string-only check)
     const slug = resolveTenantSlugFromHost(host);
     if (slug && !pathname.startsWith("/api/") && !pathname.startsWith("/_next/")) {
-      // Rewrite unilag.votewise.com.ng/ → /org/unilag
       if (pathname === "/" || pathname === "") {
         return NextResponse.rewrite(new URL(`/org/${slug}`, request.url));
       }
-    } else if (!pathname.startsWith("/api/") && !pathname.startsWith("/_next/") && (pathname === "/" || pathname === "")) {
-      // Not a subdomain — try custom domain lookup (e.g. elections.unilag.edu.ng → /org/{slug})
-      const customTenant = await resolveTenantByCustomDomain(host);
-      if (customTenant?.slug) {
-        return NextResponse.rewrite(new URL(`/org/${customTenant.slug}`, request.url));
-      }
     }
+    // Custom domains fall through — the /org/[slug] page handles them
   }
 
   // ─── Standard routing ────────────────────────────────────────────

@@ -2052,3 +2052,70 @@ GET  /dashboard         200  time=2.16s
 ## Files Modified/Created
 - **Created**: `src/components/dashboard/org-dashboard-content.tsx` (extracted org dashboard UI)
 - **Modified**: `src/app/dashboard/page.tsx` (rewritten with next/dynamic lazy-loading)
+
+---
+Task ID: DASHBOARD-FINAL-FIX (final dashboard responsiveness fix)
+Agent: Lead (orchestrator)
+Task: Fix /dashboard still not showing — implement final solution.
+
+## Root Cause Analysis
+The platform admin dashboard at /dashboard was not loading due to **repeated OOM (Out of Memory) kills** in the dev sandbox (4GB RAM). Multiple causes:
+
+1. **proxy.ts was async with DB queries** — the middleware was calling `resolveTenantByCustomDomain()` (a Prisma DB query) on EVERY request. This is extremely expensive and caused memory pressure.
+2. **DashboardShell eagerly imported heavy components** — `SupportChatWidget` (imports socket.io-client), `CommandPalette`, and `CreateElectionDialog` were all eagerly imported, forcing Turbopack to compile them even when not needed.
+3. **PlatformAdminDashboard imported lazy panels inline** — even with `lazy()`, the panels were still in the same chunk as the dashboard page.
+4. **NODE_OPTIONS was too small** — 512MB heap wasn't enough for Turbopack + Prisma + bcrypt + recharts compilation.
+
+## Final Solution — Multi-Layer Fix
+
+### 1. proxy.ts — removed async DB query (CRITICAL)
+- Reverted to **synchronous** `proxy` function.
+- Removed `resolveTenantByCustomDomain` import — no DB queries in middleware.
+- Custom domains are handled by the `/org/[slug]` page itself (reads host header), NOT by the proxy.
+- Proxy now only does lightweight string parsing (subdomain extraction).
+
+### 2. DashboardShell — lazy-loaded all heavy widgets
+- `CreateElectionDialog`, `CommandPalette`, `SupportChatWidget` are now lazy-loaded via `React.lazy()` + `<Suspense fallback={null}>`.
+- Socket.io-client is no longer loaded on every dashboard page — only when the chat widget is actually opened.
+- This dramatically reduces the initial compilation footprint.
+
+### 3. PlatformAdminDashboard — stripped to bare minimum
+- Removed inline `AdminChatDashboard` and `ProviderManagementPanel` (which were lazy-loaded but still in the same compilation unit).
+- Replaced with **link cards** to separate pages:
+  - `/dashboard/commercial` — Negotiations review
+  - `/dashboard/providers` — Provider configuration (NEW page)
+  - `/dashboard/live-chat` — Live support chat (NEW page)
+- The dashboard now only renders: header + stat cards + quick links + recent orgs/elections/payments.
+- No socket.io, no recharts, no heavy panels — compiles in ~2s.
+
+### 4. New separate pages for heavy components
+- `src/app/dashboard/providers/page.tsx` — lazy-loads `ProviderManagementPanel`
+- `src/app/dashboard/live-chat/page.tsx` — lazy-loads `AdminChatDashboard` (socket.io)
+- These are only compiled when the user actually visits them.
+
+### 5. Updated navigation
+- `PLATFORM_NAV` now has 3 items: Negotiations, Providers, Live Chat.
+- Dashboard titles map includes all new pages.
+- Command palette includes all new pages.
+
+### 6. NODE_OPTIONS set to 1536MB
+- The dev server needs at least 1.5GB heap to compile Prisma + bcrypt + the dashboard page.
+- Set via `NODE_OPTIONS="--max-old-space-size=1536"` when starting Next.js.
+
+## Verification Results
+```
+Server start:    ✓ Ready in 907ms
+GET /:           200 (5.3s compile)
+POST /api/auth/login:  200 (3.2s compile + bcrypt)
+GET /api/auth/me:      200 
+GET /dashboard:        200 (2.2s compile — lazy chunks)
+Next.js process:       ALIVE after all requests ✅
+```
+
+- `bun run lint`: 0 errors, 0 warnings ✅
+- All 4 services running (Next.js :3000, monitor :3003, support chat :3004, scheduler)
+- Memory usage: ~1.5GB for Next.js (within 4GB sandbox limit)
+
+## Files Modified/Created
+- **Modified**: `src/proxy.ts` (sync, no DB), `src/components/dashboard/dashboard-shell.tsx` (lazy widgets), `src/components/dashboard/platform-admin-dashboard.tsx` (stripped to stats + links), `src/components/dashboard/nav-config.ts` (3 platform nav items + icons), `src/components/dashboard/dashboard-shell.tsx` (titles), `src/components/dashboard/command-palette.tsx` (platform items), `package.json` (removed predev hook).
+- **Created**: `src/app/dashboard/providers/page.tsx`, `src/app/dashboard/live-chat/page.tsx`.

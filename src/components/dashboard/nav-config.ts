@@ -13,6 +13,8 @@ import {
   Building2,
   BarChart3,
   Activity,
+  Settings2,
+  MessageCircle,
 } from "lucide-react";
 
 export interface NavItem {
@@ -39,7 +41,9 @@ export const PRIMARY_NAV: NavItem[] = [
 ];
 
 export const PLATFORM_NAV: NavItem[] = [
-  { label: "Platform Admin", href: "/dashboard/commercial", icon: Building2 },
+  { label: "Negotiations", href: "/dashboard/commercial", icon: Building2 },
+  { label: "Providers", href: "/dashboard/providers", icon: Settings2 },
+  { label: "Live Chat", href: "/dashboard/live-chat", icon: MessageCircle },
 ];
 
 // Tab config for the election command center

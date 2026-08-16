@@ -30,6 +30,8 @@ import {
   Search,
   BarChart3,
   Activity,
+  Settings2,
+  MessageCircle,
 } from "lucide-react";
 
 interface CommandPaletteProps {
@@ -55,7 +57,9 @@ const NAV_ITEMS = [
 ];
 
 const PLATFORM_ITEMS = [
-  { label: "Platform Admin — Negotiations", href: "/dashboard/commercial", icon: Building2, group: "Platform" },
+  { label: "Negotiations", href: "/dashboard/commercial", icon: Building2, group: "Platform" },
+  { label: "Provider Configuration", href: "/dashboard/providers", icon: Settings2, group: "Platform" },
+  { label: "Live Support Chat", href: "/dashboard/live-chat", icon: MessageCircle, group: "Platform" },
 ];
 
 const QUICK_LINKS = [

@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useState, lazy, Suspense } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/shared/stat-card";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -15,32 +13,16 @@ import {
   Building2,
   Vote,
   Users,
-  UserSquare2,
   ShieldAlert,
   LifeBuoy,
-  MessageCircle,
-  Settings2,
   TrendingUp,
   DollarSign,
   Clock,
   ArrowRight,
-  Activity,
   Globe,
+  MessageCircle,
+  Settings2,
 } from "lucide-react";
-
-// Lazy-load heavy panels so they don't block the initial render of stats.
-// The platform admin sees the headline numbers immediately, then the
-// support chat + provider config stream in below.
-const ProviderManagementPanel = lazy(() =>
-  import("@/components/dashboard/provider-management-panel").then((m) => ({
-    default: m.ProviderManagementPanel,
-  }))
-);
-const AdminChatDashboard = lazy(() =>
-  import("@/components/dashboard/admin-chat-dashboard").then((m) => ({
-    default: m.AdminChatDashboard,
-  }))
-);
 
 interface PlatformStats {
   organizations: number;
@@ -109,7 +91,7 @@ export function PlatformAdminDashboard({ userName }: { userName: string }) {
         setData(res.data);
       }
     })();
-    return () => { cancelled = true; };
+    return () => { cancelled = false; };
   }, []);
 
   if (loading || !data) {
@@ -135,12 +117,7 @@ export function PlatformAdminDashboard({ userName }: { userName: string }) {
   return (
     <div className="flex-1 space-y-6 p-4 sm:p-6 lg:p-8">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/10 via-accent/30 to-background p-6 sm:p-8"
-      >
+      <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/10 via-accent/30 to-background p-6 sm:p-8">
         <div className="absolute right-0 top-0 h-40 w-40 -translate-y-12 translate-x-12 rounded-full bg-primary/10 blur-3xl" />
         <div className="relative">
           <div className="flex items-center gap-2">
@@ -163,10 +140,10 @@ export function PlatformAdminDashboard({ userName }: { userName: string }) {
             Platform-wide overview of organizations, elections, and system health.
           </p>
         </div>
-      </motion.div>
+      </div>
 
       {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Organizations" value={formatNumber(stats.organizations)} icon={Building2} hint="Registered orgs" />
         <StatCard label="Active Elections" value={formatNumber(stats.activeElections)} icon={Vote} hint="Currently live" trend={stats.activeElections > 0 ? { value: "live now", positive: true } : undefined} />
         <StatCard label="Total Voters" value={formatNumber(stats.voters)} icon={Users} hint="Across all orgs" />
@@ -181,7 +158,53 @@ export function PlatformAdminDashboard({ userName }: { userName: string }) {
         <StatCard label="Security Alerts" value={formatNumber(stats.securityEvents)} icon={ShieldAlert} hint="Unresolved events" />
       </div>
 
-      {/* Recent activity + Payments */}
+      {/* Quick links to heavy panels (separate pages to prevent OOM) */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Link href="/dashboard/commercial" className="group">
+          <Card className="transition-all hover:border-primary/40 hover:shadow-sm">
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                <DollarSign className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold">Negotiations</p>
+                <p className="text-xs text-muted-foreground">Review & approve activation requests</p>
+              </div>
+              <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/dashboard/providers" className="group">
+          <Card className="transition-all hover:border-primary/40 hover:shadow-sm">
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                <Settings2 className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold">Provider Config</p>
+                <p className="text-xs text-muted-foreground">Email / SMS / WhatsApp settings</p>
+              </div>
+              <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/dashboard/live-chat" className="group">
+          <Card className="transition-all hover:border-primary/40 hover:shadow-sm">
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                <MessageCircle className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold">Live Support Chat</p>
+                <p className="text-xs text-muted-foreground">Real-time voter support inbox</p>
+              </div>
+              <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+            </CardContent>
+          </Card>
+        </Link>
+      </div>
+
+      {/* Recent activity */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Recent organizations */}
         <Card>
@@ -200,19 +223,13 @@ export function PlatformAdminDashboard({ userName }: { userName: string }) {
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            <ScrollArea className="max-h-[24rem] scroll-area-custom">
+            <div className="max-h-[24rem] overflow-y-auto scroll-area-custom">
               <div className="space-y-1 p-3">
                 {recentOrgs.length === 0 ? (
                   <p className="py-8 text-center text-xs text-muted-foreground">No organizations yet.</p>
                 ) : (
-                  recentOrgs.map((org, idx) => (
-                    <motion.div
-                      key={org.id}
-                      initial={{ opacity: 0, y: 4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.05 }}
-                      className="group flex items-center gap-3 rounded-lg border bg-background p-3 transition-colors hover:bg-accent/30"
-                    >
+                  recentOrgs.map((org) => (
+                    <div key={org.id} className="group flex items-center gap-3 rounded-lg border bg-background p-3 transition-colors hover:bg-accent/30">
                       <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
                         <Building2 className="h-4 w-4" />
                       </div>
@@ -225,41 +242,31 @@ export function PlatformAdminDashboard({ userName }: { userName: string }) {
                       <Badge variant="outline" className="shrink-0 text-[10px]">
                         {org.subscriptionTier}
                       </Badge>
-                    </motion.div>
+                    </div>
                   ))
                 )}
               </div>
-            </ScrollArea>
+            </div>
           </CardContent>
         </Card>
 
         {/* Recent elections */}
         <Card>
           <CardHeader className="border-b pb-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Vote className="h-4 w-4 text-primary" />
-                  Recent elections
-                </CardTitle>
-                <CardDescription className="text-xs">Latest elections across all organizations</CardDescription>
-              </div>
-            </div>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Vote className="h-4 w-4 text-primary" />
+              Recent elections
+            </CardTitle>
+            <CardDescription className="text-xs">Latest elections across all organizations</CardDescription>
           </CardHeader>
           <CardContent className="p-0">
-            <ScrollArea className="max-h-[24rem] scroll-area-custom">
+            <div className="max-h-[24rem] overflow-y-auto scroll-area-custom">
               <div className="space-y-1 p-3">
                 {recentElections.length === 0 ? (
                   <p className="py-8 text-center text-xs text-muted-foreground">No elections yet.</p>
                 ) : (
-                  recentElections.map((el, idx) => (
-                    <motion.div
-                      key={el.id}
-                      initial={{ opacity: 0, y: 4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.05 }}
-                      className="group flex items-center gap-3 rounded-lg border bg-background p-3 transition-colors hover:bg-accent/30"
-                    >
+                  recentElections.map((el) => (
+                    <div key={el.id} className="group flex items-center gap-3 rounded-lg border bg-background p-3 transition-colors hover:bg-accent/30">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <p className="truncate text-sm font-medium">{el.name}</p>
@@ -272,11 +279,11 @@ export function PlatformAdminDashboard({ userName }: { userName: string }) {
                       <span className="shrink-0 text-[10px] text-muted-foreground">
                         {formatRelative(el.createdAt)}
                       </span>
-                    </motion.div>
+                    </div>
                   ))
                 )}
               </div>
-            </ScrollArea>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -292,16 +299,10 @@ export function PlatformAdminDashboard({ userName }: { userName: string }) {
             <CardDescription className="text-xs">Latest election activation payments</CardDescription>
           </CardHeader>
           <CardContent className="p-0">
-            <ScrollArea className="max-h-[16rem] scroll-area-custom">
+            <div className="max-h-[16rem] overflow-y-auto scroll-area-custom">
               <div className="space-y-1 p-3">
-                {recentPayments.map((payment, idx) => (
-                  <motion.div
-                    key={payment.id}
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.05 }}
-                    className="flex items-center gap-3 rounded-lg border bg-background p-3"
-                  >
+                {recentPayments.map((payment) => (
+                  <div key={payment.id} className="flex items-center gap-3 rounded-lg border bg-background p-3">
                     <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-500/10 text-emerald-600">
                       <DollarSign className="h-4 w-4" />
                     </div>
@@ -329,64 +330,13 @@ export function PlatformAdminDashboard({ userName }: { userName: string }) {
                         {payment.status}
                       </Badge>
                     </div>
-                  </motion.div>
+                  </div>
                 ))}
               </div>
-            </ScrollArea>
+            </div>
           </CardContent>
         </Card>
       )}
-
-      {/* ─── Support Chat Dashboard (lazy-loaded) ─── */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <MessageCircle className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-semibold tracking-tight">Live Support Inbox</h2>
-          <Badge variant="outline" className="border-emerald-300 text-emerald-700 dark:border-emerald-700 dark:text-emerald-300">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="absolute inline-flex h-1.5 w-1.5 animate-ping rounded-full bg-emerald-500 opacity-75" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            </span>
-            Real-time
-          </Badge>
-        </div>
-        <Suspense fallback={<ChatSkeleton />}>
-          <AdminChatDashboard adminId={userName} adminName={userName} />
-        </Suspense>
-      </div>
-
-      {/* ─── Provider Management (lazy-loaded) ─── */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Settings2 className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-semibold tracking-tight">Provider Configuration</h2>
-        </div>
-        <Suspense fallback={<ProviderSkeleton />}>
-          <ProviderManagementPanel />
-        </Suspense>
-      </div>
-    </div>
-  );
-}
-
-function ChatSkeleton() {
-  return (
-    <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
-      <Skeleton className="h-[calc(100dvh-9rem)] lg:h-[calc(100vh-12rem)]" />
-      <Skeleton className="hidden lg:block h-[calc(100vh-12rem)]" />
-    </div>
-  );
-}
-
-function ProviderSkeleton() {
-  return (
-    <div className="space-y-4">
-      <Skeleton className="h-8 w-48" />
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Skeleton className="h-48" />
-        <Skeleton className="h-48" />
-        <Skeleton className="h-48" />
-      </div>
     </div>
   );
 }

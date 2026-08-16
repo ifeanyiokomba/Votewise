@@ -1,13 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, lazy, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
 import { AppSidebar } from "./app-sidebar";
 import { AppTopbar } from "./app-topbar";
-import { CreateElectionDialog } from "./create-election-dialog";
-import { CommandPalette } from "./command-palette";
-import { SupportChatWidget } from "@/components/shared/support-chat-widget";
 import {
   Sheet,
   SheetContent,
@@ -16,6 +13,20 @@ import {
 } from "@/components/ui/sheet";
 import { apiFetch } from "@/lib/api-fetch";
 import type { NotificationDTO, UserDTO, OrganizationDTO } from "./types";
+
+// Lazy-load heavy components to prevent OOM during compilation.
+// These components pull in socket.io-client, framer-motion, and other
+// heavy deps — eager-loading them causes Turbopack to compile everything
+// at once, exceeding the sandbox's 4GB RAM.
+const CreateElectionDialog = lazy(() =>
+  import("./create-election-dialog").then((m) => ({ default: m.CreateElectionDialog }))
+);
+const CommandPalette = lazy(() =>
+  import("./command-palette").then((m) => ({ default: m.CommandPalette }))
+);
+const SupportChatWidget = lazy(() =>
+  import("@/components/shared/support-chat-widget").then((m) => ({ default: m.SupportChatWidget }))
+);
 
 interface DashboardShellProps {
   user: UserDTO | null;
@@ -38,6 +49,9 @@ const DEFAULT_TITLES: Record<string, string> = {
   "/dashboard/subscription": "Subscription",
   "/dashboard/notifications": "Notifications",
   "/dashboard/settings": "Settings",
+  "/dashboard/commercial": "Negotiations",
+  "/dashboard/providers": "Provider Configuration",
+  "/dashboard/live-chat": "Live Support Chat",
 };
 
 function resolveTitle(pathname: string): string {
@@ -149,24 +163,30 @@ export function DashboardShell({
         </p>
       </footer>
 
-      <CreateElectionDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        onCreated={(electionId) => {
-          setCreateOpen(false);
-          router.push(`/dashboard/elections/${electionId}`);
-        }}
-      />
+      <Suspense fallback={null}>
+        <CreateElectionDialog
+          open={createOpen}
+          onOpenChange={setCreateOpen}
+          onCreated={(electionId) => {
+            setCreateOpen(false);
+            router.push(`/dashboard/elections/${electionId}`);
+          }}
+        />
+      </Suspense>
 
-      <CommandPalette
-        open={cmdOpen}
-        onOpenChange={setCmdOpen}
-        isPlatformAdmin={user?.role === "PLATFORM_ADMIN"}
-        onCreateElection={() => setCreateOpen(true)}
-      />
+      <Suspense fallback={null}>
+        <CommandPalette
+          open={cmdOpen}
+          onOpenChange={setCmdOpen}
+          isPlatformAdmin={user?.role === "PLATFORM_ADMIN"}
+          onCreateElection={() => setCreateOpen(true)}
+        />
+      </Suspense>
 
-      {/* Floating support chat widget */}
-      <SupportChatWidget />
+      {/* Floating support chat widget — lazy to avoid loading socket.io on every page */}
+      <Suspense fallback={null}>
+        <SupportChatWidget />
+      </Suspense>
     </div>
   );
 }
