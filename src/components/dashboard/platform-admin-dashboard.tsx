@@ -11,6 +11,8 @@ import { StatCard } from "@/components/shared/stat-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { apiFetch } from "@/lib/api-fetch";
 import { cn, formatNumber, formatRelative, formatCurrency } from "@/lib/utils";
+import { ProviderManagementPanel } from "@/components/dashboard/provider-management-panel";
+import { AdminChatDashboard } from "@/components/dashboard/admin-chat-dashboard";
 import {
   Building2,
   Vote,
@@ -18,6 +20,8 @@ import {
   UserSquare2,
   ShieldAlert,
   LifeBuoy,
+  MessageCircle,
+  Settings2,
   TrendingUp,
   DollarSign,
   Clock,
@@ -320,6 +324,31 @@ export function PlatformAdminDashboard({ userName }: { userName: string }) {
           </CardContent>
         </Card>
       )}
+
+      {/* ─── Support Chat Dashboard ─── */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <MessageCircle className="h-5 w-5 text-primary" />
+          <h2 className="text-lg font-semibold tracking-tight">Live Support Inbox</h2>
+          <Badge variant="outline" className="border-emerald-300 text-emerald-700 dark:border-emerald-700 dark:text-emerald-300">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-1.5 w-1.5 animate-ping rounded-full bg-emerald-500 opacity-75" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            </span>
+            Real-time
+          </Badge>
+        </div>
+        <AdminChatDashboard adminId={userName} adminName={userName} />
+      </div>
+
+      {/* ─── Provider Management ─── */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Settings2 className="h-5 w-5 text-primary" />
+          <h2 className="text-lg font-semibold tracking-tight">Provider Configuration</h2>
+        </div>
+        <ProviderManagementPanel />
+      </div>
     </div>
   );
 }
