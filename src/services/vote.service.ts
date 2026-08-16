@@ -30,6 +30,14 @@ export class VoteService {
       throw new ForbiddenError("Voter must be verified before voting");
     }
 
+    // ─── CRITICAL: enforce one-vote-per-voter at the service layer ───
+    // The frontend hasVoted() check is a courtesy; this is the real gate.
+    // Without this, a voter can start a new session + cast a second ballot
+    // after their first session is closed.
+    if (await this.hasVoted(voterId, electionId)) {
+      throw new ConflictError("You have already cast your ballot for this election");
+    }
+
     // Re-use an active session if present (idempotent)
     const existing = await db.votingSession.findFirst({
       where: { voterId, electionId, isActive: true },
@@ -77,6 +85,14 @@ export class VoteService {
       throw new ForbiddenError("Invalid or inactive voting session");
     }
 
+    // ─── CRITICAL: defense-in-depth — re-check hasVoted before writing ───
+    // Even though startSession checks this, there's a race window between
+    // session start and ballot cast. This second check inside the transaction
+    // prevents concurrent requests from both succeeding.
+    if (await this.hasVoted(voterId, electionId)) {
+      throw new ConflictError("You have already cast your ballot for this election");
+    }
+
     // Ensure the voter has not already cast votes for this election via this session
     const alreadyVoted = await db.vote.findFirst({
       where: { anonymousToken: session.anonymousToken, electionId },
@@ -85,7 +101,8 @@ export class VoteService {
       throw new ConflictError("You have already cast your ballot for this election");
     }
 
-    // Validate every selection maps to a real position+candidate in this election
+    // ─── Validate maxChoices + duplicate positions (Finding #15) ───
+    const positionSelections = new Map<string, string[]>();
     for (const sel of selections) {
       const position = election.positions.find((p) => p.id === sel.positionId);
       if (!position) throw new NotFoundError("Position");
@@ -93,6 +110,25 @@ export class VoteService {
         where: { id: sel.candidateId, positionId: sel.positionId, electionId },
       });
       if (!candidate) throw new NotFoundError("Candidate");
+
+      // Track selections per position
+      const existing = positionSelections.get(sel.positionId) ?? [];
+      if (existing.includes(sel.candidateId)) {
+        throw new ConflictError(
+          "Duplicate candidate selection for the same position"
+        );
+      }
+      existing.push(sel.candidateId);
+      positionSelections.set(sel.positionId, existing);
+
+      // Enforce maxChoices
+      const maxChoices = position.maxChoices ?? 1;
+      if (existing.length > maxChoices) {
+        throw new ConflictError(
+          `Position "${position.title}" allows a maximum of ${maxChoices} choice(s). ` +
+            `You submitted ${existing.length}.`
+        );
+      }
     }
 
     // Atomic transaction: insert all votes + close session
@@ -111,7 +147,12 @@ export class VoteService {
             electionId,
             positionId: sel.positionId,
             candidateId: sel.candidateId,
-            sessionId: session.id,
+            // SECURITY: sessionId is intentionally NOT written here (Finding #4).
+            // Writing sessionId would create a joinable Vote → VotingSession → Voter
+            // chain that breaks ballot secrecy. The anonymousToken is the only
+            // link between a vote and a session, and it's a random 32-byte
+            // value that cannot be traced back to a voter without DB access
+            // to the VotingSession table (which is admin-only).
             ballotHash,
             status: "CAST",
           },

@@ -79,7 +79,11 @@ export class OtpService {
     return {
       success: true,
       attemptsRemaining: MAX_OTP_ATTEMPTS,
-      devCode: process.env.NODE_ENV === "production" ? undefined : code,
+      // SECURITY (Finding #14): OTP dev echo is gated on an explicit flag,
+      // not on NODE_ENV. This prevents accidental OTP leaks if the production
+      // environment ever has NODE_ENV unset or set to something other than
+      // the literal string "production".
+      devCode: process.env.ENABLE_OTP_DEV_ECHO === "true" ? code : undefined,
     };
   }
 

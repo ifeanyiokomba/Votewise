@@ -4,10 +4,10 @@ import { generateReference } from "@/lib/utils";
 import { NotificationService } from "./notification.service";
 
 const PLATFORM_ADMIN_EMAIL = process.env.PLATFORM_ADMIN_EMAIL ?? "admin@votewise.com.ng";
+const PLATFORM_PHONE = process.env.PLATFORM_PHONE ?? process.env.VOTEWISE_PLATFORM_PHONE ?? "+2348000000000";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? "votewise.com.ng";
 const WHATSAPP_NUMBER = process.env.VOTEWISE_WHATSAPP_NUMBER ?? "+2348000000000";
-const PLATFORM_PHONE = process.env.VOTEWISE_PLATFORM_PHONE ?? "+2348000000000";
 
 export class ActivationService {
   static async getOrCreateForElection(electionId: string, organizationId: string) {

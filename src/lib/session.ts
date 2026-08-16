@@ -7,9 +7,13 @@ const COOKIE_NAME = "votewise_session";
 const ALG = "HS256";
 
 function getSecret(): Uint8Array {
-  const secret =
-    process.env.SESSION_SECRET ??
-    "votewise_dev_secret_change_in_production_min_32_chars_long";
+  const secret = process.env.SESSION_SECRET;
+  if (!secret || secret.length < 32) {
+    throw new Error(
+      "SESSION_SECRET is not set or is too short (must be ≥ 32 characters). " +
+        "Set it with: openssl rand -hex 32"
+    );
+  }
   return new TextEncoder().encode(secret);
 }
 

@@ -5,7 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "bun --hot index.ts",
-    "start": "bun index.ts"
+    "start": "bun index.ts",
+    "prisma:generate": "prisma generate --schema=../../prisma/schema.prisma"
   },
-  "dependencies": {}
+  "prisma": {
+    "schema": "../../prisma/schema.prisma"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.11.1"
+  }
 }

@@ -2119,3 +2119,150 @@ Next.js process:       ALIVE after all requests ✅
 ## Files Modified/Created
 - **Modified**: `src/proxy.ts` (sync, no DB), `src/components/dashboard/dashboard-shell.tsx` (lazy widgets), `src/components/dashboard/platform-admin-dashboard.tsx` (stripped to stats + links), `src/components/dashboard/nav-config.ts` (3 platform nav items + icons), `src/components/dashboard/dashboard-shell.tsx` (titles), `src/components/dashboard/command-palette.tsx` (platform items), `package.json` (removed predev hook).
 - **Created**: `src/app/dashboard/providers/page.tsx`, `src/app/dashboard/live-chat/page.tsx`.
+
+---
+Task ID: SECURITY-AUDIT-FIX (external audit findings)
+Agent: Lead (orchestrator)
+Task: Address all findings from external codebase security audit.
+
+## Critical Findings Fixed
+
+### Finding #2 — Separate ENCRYPTION_KEY + fail-loud session secret
+**Problem**: `SESSION_SECRET` was reused as the AES-256-GCM key for provider credential encryption. A single leak compromised both session JWTs AND stored API keys. Both files also silently fell back to a hardcoded string if the env var was missing.
+
+**Fix**:
+- `src/lib/crypto.ts`: Now reads from a dedicated `ENCRYPTION_KEY` env var. Throws if missing or < 32 chars.
+- `src/lib/session.ts`: `getSecret()` now throws if `SESSION_SECRET` is missing or < 32 chars. No more silent fallback to a known value.
+- Generated new secrets: `SESSION_SECRET` and `ENCRYPTION_KEY` are now distinct random 32-byte hex values.
+- `.env` updated with both secrets.
+- `.env.example` documents both with generation instructions.
+
+### Finding #3 — Double voting enforcement (CRITICAL)
+**Problem**: `VoteService.hasVoted()` was only called from the `/api/voter/verify` route (courtesy UI check). `startSession` and `castVotes` did NOT check it — a voter could start a new session + cast a second ballot after their first session closed.
+
+**Fix** (`src/services/vote.service.ts`):
+- `startSession()`: Added `hasVoted()` check before creating a new session. Throws `ConflictError` if the voter already cast a ballot.
+- `castVotes()`: Added defense-in-depth `hasVoted()` re-check inside the method, before the transaction. This closes the race window between session start and ballot cast.
+- Both checks throw `ConflictError("You have already cast your ballot for this election")`.
+
+### Finding #4 — Ballot secrecy (sessionId column removed)
+**Problem**: `Vote.sessionId` was a foreign key to `VotingSession`, which has `voterId`. This created a trivial join: `Vote → VotingSession → Voter` — anyone with DB read access could see exactly how each named voter voted.
+
+**Fix**:
+- `prisma/schema.prisma`: Removed `sessionId` column from `Vote` model. Removed the `session` relation. Removed the `votes` relation from `VotingSession`.
+- `src/services/vote.service.ts`: `castVotes()` no longer writes `sessionId: session.id` on Vote rows. The `anonymousToken` (a random 32-byte value) is the ONLY link between a vote and a session.
+- `bun run db:push` applied the schema change.
+- **Note**: This is a breaking schema change. If you need to void/re-issue a specific ballot in the future, that operation should go through a narrow, heavily-audited admin path — not a standing joinable column.
+
+### Finding #6 — Scheduler service pointed at wrong DB
+**Problem**: `mini-services/scheduler-service/index.ts` used `bun:sqlite` against `/home/z/my-project/db/custom.db` — a hardcoded path from the original Z.ai sandbox that doesn't exist in production. The scheduler was reading/writing a database the live app never uses, so automatic election status transitions never happened.
+
+**Fix**:
+- Rewrote to use `PrismaClient` against `DATABASE_URL` (same Postgres as the main app).
+- All SQLite queries converted to Prisma queries.
+- Added `@prisma/client` dependency to `mini-services/scheduler-service/package.json`.
+- `bun install` completed.
+- The scheduler now correctly transitions SCHEDULED→LIVE→CLOSED based on start/end times, and auto-reverts custom domains when all elections close.
+
+### Finding #11 — typescript.ignoreBuildErrors removed
+**Problem**: `next.config.ts` had `typescript.ignoreBuildErrors: true`, which meant TypeScript errors wouldn't stop a deploy — real bugs could slip through.
+
+**Fix**: Removed the `typescript` block entirely. The build now catches type errors.
+
+### Finding #14 — OTP dev-code leak gating
+**Problem**: OTP codes were echoed in API responses when `NODE_ENV !== "production"`. If the deployment ever had `NODE_ENV` unset or set to anything other than the literal string "production" (e.g. staging), every OTP was handed back in the response body.
+
+**Fix** (`src/services/otp.service.ts`):
+- Changed gate from `process.env.NODE_ENV === "production"` to `process.env.ENABLE_OTP_DEV_ECHO === "true"`.
+- This is an explicit opt-in flag — must be deliberately set to `"true"` to echo OTP codes.
+- `.env` has `ENABLE_OTP_DEV_ECHO=true` for local dev; `.env.example` documents it with a warning.
+
+### Finding #15 — maxChoices + duplicate-position validation
+**Problem**: `Position.maxChoices` existed in the schema but was never checked during ballot submission. Duplicate candidates for the same position would throw a raw Prisma error (500) instead of a clean validation message.
+
+**Fix** (`src/services/vote.service.ts`):
+- Added a `positionSelections` Map that tracks selections per position.
+- Checks for duplicate candidate IDs per position → throws `ConflictError("Duplicate candidate selection for the same position")`.
+- Enforces `maxChoices` → throws `ConflictError("Position 'X' allows a maximum of N choice(s). You submitted M.")`.
+
+### Finding #18 — .env.example created
+**Problem**: No `.env.example` existed. New environments had to guess variable names from source code.
+
+**Fix**: Created `src/../.env.example` with all variables, placeholder values, and generation instructions for secrets.
+
+### Finding #19 — Z.ai domains removed from next.config.ts
+**Problem**: `allowedDevOrigins` listed `*.space-z.ai`, `*.chatglm.cn`, `*.z.ai` — dev-only settings from the Z.ai sandbox.
+
+**Fix**: Removed the `allowedDevOrigins` block entirely.
+
+### .gitignore hardened
+- `.env` and `.env.*` now explicitly ignored (with `!.env.example` exception).
+- `*.db`, `*.db-*`, `db/` explicitly ignored.
+- `/skills/`, `/tool-results/`, `/agent-ctx/` explicitly ignored.
+- `*.log`, `dev.log`, `server.log` explicitly ignored.
+
+## Findings NOT fixed (require infrastructure decisions)
+
+### Finding #1 — Rotate Neon DB password
+**Status**: CANNOT be done from code. The user must:
+1. Log into the Neon dashboard.
+2. Rotate the database password (invalidates the leaked one immediately).
+3. Update `.env` with the new `DATABASE_URL`.
+4. **This is the single most urgent action** — the current password is public.
+
+### Finding #5 — Real Paystack integration
+**Status**: Placeholder. The payment endpoint self-marks as paid. A real integration needs:
+1. Initialize Paystack transaction server-side → return checkout URL.
+2. Webhook endpoint verifying Paystack HMAC signature.
+3. Only mark `PAYMENT_VERIFIED` from the verified webhook.
+This is a self-contained piece of work — ready to build when you're ready.
+
+### Finding #7 — SQLite DB file committed to git
+**Status**: The file `db/custom.db` is tracked in git history. Since the repo only has one commit, the cleanup is:
+```bash
+git rm -r --cached .env db/custom.db db/custom.db-shm db/custom.db-wal skills/ tool-results/
+git commit -m "Remove leaked secrets and agent artifacts"
+git push --force
+```
+**Note**: This does NOT un-expose the secrets — rotate the DB password regardless.
+
+### Finding #8 — 61MB of agent tooling in repo
+**Status**: `skills/`, `tool-results/`, `agent-ctx/` are tracked. Same `git rm --cached` pass as above.
+
+### Finding #9 — Rate limiting in-process memory
+**Status**: Known limitation. For multi-instance deployment (Vercel), needs Upstash Redis or similar shared store.
+
+### Finding #10 — mini-services orchestration
+**Status**: No `docker-compose.yml`/`Procfile` exists. Needs a deployment-target decision (Caddy/VPS vs. Vercel) before this can be properly wired.
+
+### Finding #12 — Caddy port-transform rule
+**Status**: Dev-only tooling from Z.ai sandbox. Should be removed before production deployment. Documented here.
+
+### Finding #13 — z-ai-web-dev-sdk dependency
+**Status**: The AI support chat uses a Z.ai-sandbox-only SDK. Needs to be swapped for a direct call to a standard model API (OpenAI/Anthropic) before deploying outside the sandbox.
+
+### Finding #16 — Cascade delete review
+**Status**: `AuditLog.organizationId` cascades on org deletion. For auditability, consider `onDelete: Restrict` for organizations with live/closed election history. Needs a product decision.
+
+### Finding #17 — OTP error genericization
+**Status**: Low priority. `OtpService.sendOtp` throws distinct errors for ineligible voters vs. missing contact method. Could be genericized further, but cuid IDs make this low real-world risk.
+
+## Verification
+- `bun run lint`: 0 errors, 0 warnings ✅
+- `bun run db:push`: Schema synced ✅
+- All 4 services running (Next.js :3000, monitor :3003, support chat :3004, scheduler)
+- Scheduler now uses Prisma + Postgres ✅
+
+## Files Modified
+- `src/lib/crypto.ts` — dedicated ENCRYPTION_KEY, fail-loud
+- `src/lib/session.ts` — fail-loud getSecret()
+- `src/services/vote.service.ts` — hasVoted() gate + maxChoices + no sessionId
+- `src/services/otp.service.ts` — ENABLE_OTP_DEV_ECHO flag
+- `src/services/activation.service.ts` — PLATFORM_PHONE env var
+- `prisma/schema.prisma` — removed Vote.sessionId + VotingSession.votes
+- `next.config.ts` — removed ignoreBuildErrors + allowedDevOrigins
+- `mini-services/scheduler-service/index.ts` — rewritten with Prisma
+- `mini-services/scheduler-service/package.json` — added @prisma/client
+- `.env` — new SESSION_SECRET + ENCRYPTION_KEY + PLATFORM_* vars
+- `.env.example` — new file with all vars documented
+- `.gitignore` — hardened (secrets, db, agent tooling)

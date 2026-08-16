@@ -2,15 +2,26 @@ import crypto from "crypto";
 
 /**
  * AES-256-GCM encryption for provider credentials stored in the database.
- * The encryption key is derived from SESSION_SECRET.
+ *
+ * SECURITY: The encryption key is derived from a dedicated ENCRYPTION_KEY
+ * environment variable — NOT from SESSION_SECRET. This separation ensures
+ * that a leaked session secret cannot be used to decrypt stored provider
+ * credentials (AWS SES keys, Termii keys, etc.).
+ *
+ * If ENCRYPTION_KEY is not set, this throws immediately. A misconfigured
+ * deploy should fail loudly, not silently fall back to a known value.
  */
 
 const ALGORITHM = "aes-256-gcm";
 
 function getKey(): Buffer {
-  const secret =
-    process.env.SESSION_SECRET ??
-    "votewise_dev_secret_change_in_production_min_32_chars_long";
+  const secret = process.env.ENCRYPTION_KEY;
+  if (!secret || secret.length < 32) {
+    throw new Error(
+      "ENCRYPTION_KEY is not set or is too short (must be ≥ 32 characters). " +
+        "Set it with: openssl rand -hex 32"
+    );
+  }
   // Derive a 32-byte key from the secret using SHA-256
   return crypto.createHash("sha256").update(secret).digest();
 }

@@ -373,7 +373,8 @@ model VotingSession {
 
   voter    Voter    @relation(fields: [voterId], references: [id], onDelete: Cascade)
   election Election @relation(fields: [electionId], references: [id], onDelete: Cascade)
-  votes    Vote[]
+  // NOTE: votes relation intentionally removed (Finding #4) — Vote no longer
+  // has sessionId, so there's no direct join from VotingSession to Vote.
 
   @@index([voterId, electionId])
   @@index([electionId])
@@ -385,15 +386,18 @@ model Vote {
   electionId     String
   positionId     String
   candidateId    String
-  sessionId      String?
+  // SECURITY (Finding #4): sessionId column removed.
+  // Previously, Vote.sessionId created a joinable chain Vote → VotingSession → Voter,
+  // breaking ballot secrecy. The anonymousToken is the ONLY link between a vote
+  // and a session — it's a random 32-byte value that cannot be traced to a
+  // voter without admin-level DB access to the VotingSession table.
   ballotHash     String
   status         VoteStatus @default(CAST)
   castAt         DateTime   @default(now())
 
-  election  Election        @relation(fields: [electionId], references: [id], onDelete: Cascade)
-  position  Position        @relation(fields: [positionId], references: [id], onDelete: Cascade)
-  candidate Candidate       @relation(fields: [candidateId], references: [id], onDelete: Cascade)
-  session   VotingSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  election  Election  @relation(fields: [electionId], references: [id], onDelete: Cascade)
+  position  Position   @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  candidate Candidate  @relation(fields: [candidateId], references: [id], onDelete: Cascade)
 
   @@unique([anonymousToken, electionId, positionId])
   @@index([electionId])
