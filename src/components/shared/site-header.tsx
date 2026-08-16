@@ -12,6 +12,7 @@ import {
   Sheet,
   SheetClose,
   SheetContent,
+  SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
 
@@ -91,6 +92,7 @@ export function SiteHeader() {
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-80 p-6">
+              <SheetTitle className="sr-only">Navigation menu</SheetTitle>
               <div className="flex items-center justify-between pr-6">
                 <Logo size="md" />
               </div>
