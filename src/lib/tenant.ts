@@ -132,6 +132,7 @@ const PUBLIC_ROUTES = [
   "/report",
   "/certificate",
   "/verify-ballot",
+  "/org",
   "/_next",
   "/favicon.ico",
 ];

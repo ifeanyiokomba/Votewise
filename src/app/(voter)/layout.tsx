@@ -48,7 +48,7 @@ export default function VoterLayout({
       <footer className="mt-auto border-t border-border/60 bg-secondary/30">
         <div className="mx-auto flex max-w-2xl flex-col items-center justify-between gap-2 px-4 py-5 text-center text-xs text-muted-foreground sm:flex-row sm:px-6 sm:text-left">
           <p>
-            &copy; {new Date().getFullYear()} {APP_NAME}. All rights reserved.
+            &copy; {new Date().getFullYear()} {APP_NAME} — A product of Okomba Inc.
           </p>
           <p className="flex items-center gap-1.5">
             <ShieldCheck className="size-3.5 text-primary" />
