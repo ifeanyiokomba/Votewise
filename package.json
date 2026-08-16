@@ -10,7 +10,8 @@
     "db:push": "prisma db push --accept-data-loss",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:reset": "prisma migrate reset"
+    "db:reset": "prisma migrate reset",
+    "predev": "node -e \"require('fs').existsSync('.env') || console.warn('No .env file found')\""
   },
   "dependencies": {
     "@auth/core": "^0.41.3",

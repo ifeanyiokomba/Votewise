@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,8 +11,6 @@ import { StatCard } from "@/components/shared/stat-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { apiFetch } from "@/lib/api-fetch";
 import { cn, formatNumber, formatRelative, formatCurrency } from "@/lib/utils";
-import { ProviderManagementPanel } from "@/components/dashboard/provider-management-panel";
-import { AdminChatDashboard } from "@/components/dashboard/admin-chat-dashboard";
 import {
   Building2,
   Vote,
@@ -29,6 +27,20 @@ import {
   Activity,
   Globe,
 } from "lucide-react";
+
+// Lazy-load heavy panels so they don't block the initial render of stats.
+// The platform admin sees the headline numbers immediately, then the
+// support chat + provider config stream in below.
+const ProviderManagementPanel = lazy(() =>
+  import("@/components/dashboard/provider-management-panel").then((m) => ({
+    default: m.ProviderManagementPanel,
+  }))
+);
+const AdminChatDashboard = lazy(() =>
+  import("@/components/dashboard/admin-chat-dashboard").then((m) => ({
+    default: m.AdminChatDashboard,
+  }))
+);
 
 interface PlatformStats {
   organizations: number;
@@ -325,7 +337,7 @@ export function PlatformAdminDashboard({ userName }: { userName: string }) {
         </Card>
       )}
 
-      {/* ─── Support Chat Dashboard ─── */}
+      {/* ─── Support Chat Dashboard (lazy-loaded) ─── */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <MessageCircle className="h-5 w-5 text-primary" />
@@ -338,16 +350,42 @@ export function PlatformAdminDashboard({ userName }: { userName: string }) {
             Real-time
           </Badge>
         </div>
-        <AdminChatDashboard adminId={userName} adminName={userName} />
+        <Suspense fallback={<ChatSkeleton />}>
+          <AdminChatDashboard adminId={userName} adminName={userName} />
+        </Suspense>
       </div>
 
-      {/* ─── Provider Management ─── */}
+      {/* ─── Provider Management (lazy-loaded) ─── */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <Settings2 className="h-5 w-5 text-primary" />
           <h2 className="text-lg font-semibold tracking-tight">Provider Configuration</h2>
         </div>
-        <ProviderManagementPanel />
+        <Suspense fallback={<ProviderSkeleton />}>
+          <ProviderManagementPanel />
+        </Suspense>
+      </div>
+    </div>
+  );
+}
+
+function ChatSkeleton() {
+  return (
+    <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
+      <Skeleton className="h-[calc(100dvh-9rem)] lg:h-[calc(100vh-12rem)]" />
+      <Skeleton className="hidden lg:block h-[calc(100vh-12rem)]" />
+    </div>
+  );
+}
+
+function ProviderSkeleton() {
+  return (
+    <div className="space-y-4">
+      <Skeleton className="h-8 w-48" />
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Skeleton className="h-48" />
+        <Skeleton className="h-48" />
+        <Skeleton className="h-48" />
       </div>
     </div>
   );

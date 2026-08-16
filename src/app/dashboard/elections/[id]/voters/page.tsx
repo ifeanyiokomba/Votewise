@@ -328,7 +328,7 @@ export default function VotersPage({
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="firstName">First name *</Label>
                 <Input id="firstName" value={voterForm.firstName} onChange={(e) => setVoterForm({ ...voterForm, firstName: e.target.value })} placeholder="John" />
@@ -338,7 +338,7 @@ export default function VotersPage({
                 <Input id="lastName" value={voterForm.lastName} onChange={(e) => setVoterForm({ ...voterForm, lastName: e.target.value })} placeholder="Doe" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="email">Email</Label>
                 <Input id="email" type="email" value={voterForm.email} onChange={(e) => setVoterForm({ ...voterForm, email: e.target.value })} placeholder="john@org.edu.ng" />
@@ -348,7 +348,7 @@ export default function VotersPage({
                 <Input id="phone" value={voterForm.phone} onChange={(e) => setVoterForm({ ...voterForm, phone: e.target.value })} placeholder="+2348012345678" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="matric">Matric / ID number</Label>
                 <Input id="matric" value={voterForm.matricNumber} onChange={(e) => setVoterForm({ ...voterForm, matricNumber: e.target.value })} placeholder="UNILAG/2020/123" />
@@ -358,7 +358,7 @@ export default function VotersPage({
                 <Input id="dept" value={voterForm.department} onChange={(e) => setVoterForm({ ...voterForm, department: e.target.value })} placeholder="Computer Science" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="faculty">Faculty</Label>
                 <Input id="faculty" value={voterForm.faculty} onChange={(e) => setVoterForm({ ...voterForm, faculty: e.target.value })} placeholder="Engineering" />

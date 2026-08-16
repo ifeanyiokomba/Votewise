@@ -275,24 +275,24 @@ export default function CandidatesPage({
                           {c.position?.title ?? positionTitle(c.positionId)}
                         </p>
                       </div>
-                      <div className="flex shrink-0 gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                      <div className="flex shrink-0 gap-0.5 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7"
+                          className="h-9 w-9"
                           onClick={() => openEdit(c)}
                           aria-label={`Edit ${c.name}`}
                         >
-                          <Pencil className="h-3 w-3" />
+                          <Pencil className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          className="h-9 w-9 text-destructive hover:bg-destructive/10 hover:text-destructive"
                           onClick={() => setDeleteTarget(c)}
                           aria-label={`Delete ${c.name}`}
                         >
-                          <Trash2 className="h-3 w-3" />
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>

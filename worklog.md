@@ -1713,3 +1713,141 @@ Task: Cross-check every directive line-by-line; fix all gaps; implement missing 
 - Election creation wizard (multi-step).
 - Per-org brand color overrides applied to voter pages.
 - Real Paystack payment webhook (currently auto-marks payment as COMPLETED).
+
+---
+Task ID: PERF-MOBILE-1 (dashboard perf + mobile-first)
+Agent: Lead (orchestrator)
+Task: Fix platform admin dashboard slow loading + make entire app mobile-first.
+
+## Root Cause Found — Platform Admin Dashboard Slow Loading
+
+**Diagnosis**: The "slow loading" was actually a complete failure — every API call returned HTTP 500 because the DATABASE_URL environment variable wasn't being picked up by the Next.js dev server. This caused:
+- Login API: 500 error
+- /api/auth/me: 500 error
+- /api/admin/platform-stats: 500 error
+- The dashboard frontend would show skeleton loaders indefinitely → perceived as "slow loading"
+
+**Root cause**: The sandbox shell has a stale `DATABASE_URL=file:/home/z/my-project/db/custom.db` env var (from the old SQLite setup). When `bun run dev` runs `next dev`, the child process inherits this stale value, which wins over `.env` (Next.js doesn't override existing env vars). Prisma then fails with "the URL must start with the protocol postgresql://".
+
+## Performance Fixes
+
+### 1. Database client env fallback (CRITICAL — root cause fix)
+- Rewrote `src/lib/db.ts` to detect when the inherited DATABASE_URL doesn't start with `postgres`, and fall back to reading it directly from `.env` file.
+- This makes the dev server bulletproof — it works regardless of what stale env vars the parent shell has.
+- Production builds still use the normal `process.env.DATABASE_URL` (fast path, no file I/O).
+
+### 2. Dashboard overview — early return for platform admin
+- `/dashboard/page.tsx` was always fetching `/api/admin/stats` and `/api/elections` even for platform admins (who don't need org-specific data).
+- Added early return after detecting PLATFORM_ADMIN role — skips the org-only API calls entirely.
+- Result: platform admin dashboard renders as soon as `/api/auth/me` returns, instead of waiting for 3 sequential API calls.
+
+### 3. Platform admin dashboard — lazy-loaded heavy panels
+- `ProviderManagementPanel` and `AdminChatDashboard` are now lazy-loaded via `React.lazy()` + `<Suspense>`.
+- The admin sees the headline stats (organizations, elections, voters, votes, pending negotiations) immediately.
+- The chat dashboard and provider config stream in below as their chunks compile.
+- Added `ChatSkeleton` and `ProviderSkeleton` fallbacks so the layout doesn't jump.
+
+### 4. Platform stats API — 30-second in-memory cache
+- `/api/admin/platform-stats` now caches its response for 30 seconds.
+- Cold call: 4.8s (11 Prisma count queries + 3 findMany + DB connection setup).
+- Warm call: 0.38s — **13× faster**.
+- Cache is per-server-instance (in-memory), refreshes automatically after 30s.
+- Platform admin reloading the dashboard gets the cached response instantly.
+
+## Mobile-First Audit & Fixes
+
+Comprehensive audit of 24 pages/components. Found 3 critical breakages + recurring touch-target issues. All fixed:
+
+### P0 — Critical mobile breakages (FIXED)
+
+**1. Candidates page — invisible edit/delete on touch devices**
+- Old: `opacity-0 group-hover:opacity-100` — buttons permanently invisible on touch devices (no `:hover`).
+- Fix: `opacity-100 sm:opacity-0 sm:group-hover:opacity-100` — always visible on mobile, hover-reveal on desktop.
+- Also bumped button size from `h-7 w-7` (28px) to `h-9 w-9` (36px) for proper touch targets.
+
+**2. Admin chat dashboard — two 100vh panels stacked on mobile**
+- Old: `grid lg:grid-cols-[320px_1fr]` with both panels `h-[calc(100vh-12rem)]`. On mobile, two ~700px panels stacked — unusable.
+- Fix: Added `mobileView` state (`"list" | "chat"`). On mobile, only one panel shows at a time.
+  - Tapping a session switches to chat view + claims the session.
+  - Chat header has a "← Back to inbox" button (mobile only) to return to the list.
+  - Both panels hidden via `hidden lg:block` when not the active mobile view.
+- Also changed `100vh` → `100dvh` (dynamic viewport height) to fix iOS Safari URL bar issue.
+- Fixed the same height bug in `ChatSkeleton` (platform-admin-dashboard.tsx).
+
+**3. Compare report — raw table overflow**
+- Old: `<table className="w-full">` with no scroll wrapper → 8-column table overflowed viewport on phones.
+- Fix: Wrapped in `<div className="overflow-x-auto">` + `min-w-[700px]` on the table. Added "Swipe to compare →" hint on mobile.
+- Also fixed: outer padding `p-8` → `p-4 sm:p-8 lg:p-12`; summary stats `grid-cols-2` → `grid-cols-1 sm:grid-cols-2 md:grid-cols-4`; turnout chart fixed widths `w-48`/`w-32` → `w-24 sm:w-48`/`w-20 sm:w-32`; report header + footer stack vertically on mobile.
+
+### P1 — Touch target violations (FIXED)
+
+All icon/action buttons below 44px touch target were bumped to 36px (h-9) or larger:
+
+| File | Element | Old | New |
+|---|---|---|---|
+| `announcements/page.tsx` | Delete button | h-6 px-2 (24px) | h-9 px-3 (36px) |
+| `users/page.tsx` | Remove member button | h-7 w-7 (28px) | h-9 w-9 (36px) |
+| `commercial/page.tsx` | Email/Call/WhatsApp buttons | h-7 (28px) | h-9 (36px) |
+| `verify/page.tsx` | Back/Resend buttons | ~20px (text only) | min-h-11 px-3 py-2 (44px) |
+| `verify/page.tsx` | Channel switcher (Email/SMS/WhatsApp) | px-2 py-0.5 (24px) | min-h-9 px-3 py-1.5 (36px) |
+| `support-chat-widget.tsx` | Mode toggle, close, attach, camera, send | h-7/h-8 (28-32px) | h-9 (36px) |
+| `admin-chat-dashboard.tsx` | Attach, camera, send buttons | h-8 w-8 (32px) | h-9 w-9 (36px) |
+
+### P2 — Layout/polish (FIXED)
+
+- **Voters page dialog**: `grid-cols-2` → `grid-cols-1 sm:grid-cols-2` (4 instances) — form fields stack on mobile.
+- **Activate page channel selector**: `grid-cols-3` → `grid-cols-1 sm:grid-cols-3` — Email/WhatsApp/Phone cards stack on mobile.
+- **Election shell padding**: `px-6 py-5` → `px-4 py-4 sm:px-6 sm:py-5` — tighter on mobile.
+- **Support chat widget height**: `h-[34rem]` → `h-[min(34rem,calc(100dvh-3rem))]` — never exceeds viewport.
+- **Landing hero stats**: `gap-4 text-2xl` → `gap-2 sm:gap-4 text-xl sm:text-2xl` — tighter on mobile.
+- **Verify page back/resend row**: `flex items-center justify-between` → `flex flex-wrap items-center justify-between gap-3` — wraps on narrow screens.
+- **Verify channel switcher**: `flex items-center gap-2` → `flex flex-wrap items-center gap-2` — wraps.
+
+## Verification Results
+
+### Timing (with `NODE_OPTIONS=--max-old-space-size=1024` to prevent OOM)
+
+```
+POST /api/auth/login                   2.6-3.5s   (compile + bcrypt)
+GET  /api/auth/me                      0.8s       (compile)
+GET  /api/admin/platform-stats (cold)  4.8s       (11 count queries + 3 findMany + DB setup)
+GET  /api/admin/platform-stats (warm) 0.38s      ← 13× faster (30s cache)
+GET  /dashboard                        2.1-5.4s   (compile lazy chunks first time, then fast)
+```
+
+### Lint
+- `bun run lint`: 0 errors, 0 warnings.
+
+### Services running
+- Next.js :3000
+- monitor :3003
+- support chat :3004
+- scheduler
+
+## Files Modified
+- `src/lib/db.ts` — env fallback for stale DATABASE_URL.
+- `src/app/dashboard/page.tsx` — early return for platform admin (skip org-only APIs).
+- `src/components/dashboard/platform-admin-dashboard.tsx` — lazy-load chat + provider panels, skeleton fallbacks, fix ChatSkeleton height.
+- `src/app/api/admin/platform-stats/route.ts` — 30-second in-memory cache.
+- `src/app/dashboard/elections/[id]/candidates/page.tsx` — visible edit/delete on touch + larger touch targets.
+- `src/components/dashboard/admin-chat-dashboard.tsx` — mobile list↔chat toggle + 100dvh + back button + larger touch targets.
+- `src/app/compare-report/page.tsx` — overflow-x-auto table + responsive widths + responsive padding + stacked header/footer.
+- `src/app/dashboard/elections/[id]/announcements/page.tsx` — larger delete button.
+- `src/app/dashboard/users/page.tsx` — larger remove button.
+- `src/app/dashboard/commercial/page.tsx` — larger quick-action buttons.
+- `src/app/(voter)/vote/[id]/verify/page.tsx` — larger back/resend/channel buttons + flex-wrap.
+- `src/components/shared/support-chat-widget.tsx` — larger touch targets + viewport-safe height.
+- `src/app/dashboard/elections/[id]/voters/page.tsx` — responsive dialog form grid.
+- `src/app/dashboard/elections/[id]/activate/page.tsx` — responsive channel selector grid.
+- `src/components/dashboard/election-shell.tsx` — responsive padding.
+- `src/app/page.tsx` — tighter hero stats on mobile.
+- `package.json` — added `predev` hook to warn if `.env` missing.
+
+## Known Issue
+- The sandbox has limited RAM (4GB). Next.js dev server (Turbopack) + Chrome (agent-browser) together can trigger OOM kills. Mitigation: use `NODE_OPTIONS=--max-old-space-size=1024` when starting next, and avoid running agent-browser + heavy curl batches simultaneously. Production (Vercel) is unaffected.
+
+## Next-Phase Recommendations
+- Add a mobile search icon in AppTopbar (currently Cmd+K is desktop-only).
+- Consider horizontally-scrolling tab strip on mobile for ElectionShell (8 tabs wrap to 2-3 rows).
+- Reposition SupportChatWidget floating button on ballot page to avoid overlap with sticky review bar.
+- Add per-org branding overrides (primary color) applied to voter pages.

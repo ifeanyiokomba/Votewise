@@ -2,6 +2,14 @@ import { ok, handleError } from "@/lib/api-response";
 import { requireRole } from "@/lib/session";
 import { db } from "@/lib/db";
 
+// In-memory cache for platform stats — refresh every 30 seconds.
+// The platform admin dashboard hits this endpoint on every dashboard load,
+// and the underlying counts are expensive on a cold Postgres connection.
+// A 30s cache keeps the dashboard snappy while still being near-real-time.
+let cachedAt = 0;
+let cachedPayload: unknown = null;
+const CACHE_TTL_MS = 30 * 1000;
+
 /**
  * Platform-wide statistics for Platform Admin dashboard.
  * Returns aggregate metrics across all organizations.
@@ -9,6 +17,11 @@ import { db } from "@/lib/db";
 export async function GET() {
   try {
     await requireRole("PLATFORM_ADMIN");
+
+    // Return cached payload if fresh
+    if (cachedPayload && Date.now() - cachedAt < CACHE_TTL_MS) {
+      return ok(cachedPayload);
+    }
 
     const [
       organizations,
@@ -40,7 +53,7 @@ export async function GET() {
       db.electionPayment.count({ where: { status: "COMPLETED" } }),
     ]);
 
-    // Recent organizations
+    // Recent organizations — only fetch the lightweight fields we render
     const recentOrgs = await db.organization.findMany({
       take: 5,
       orderBy: { createdAt: "desc" },
@@ -82,7 +95,7 @@ export async function GET() {
       },
     });
 
-    return ok({
+    const payload = {
       stats: {
         organizations,
         elections,
@@ -99,7 +112,12 @@ export async function GET() {
       recentOrgs,
       recentElections,
       recentPayments,
-    });
+    };
+
+    cachedAt = Date.now();
+    cachedPayload = payload;
+
+    return ok(payload);
   } catch (e) {
     return handleError(e);
   }

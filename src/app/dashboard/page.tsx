@@ -103,9 +103,9 @@ export default function OverviewPage() {
 
     // First fetch the user's identity to determine role
     const meRes = await apiFetch<MeResponse>("/api/auth/me");
-    setLoading(false);
 
     if (!meRes.success || !meRes.data?.user) {
+      setLoading(false);
       setError("Could not load user session");
       return;
     }
@@ -114,15 +114,20 @@ export default function OverviewPage() {
     const isPA = meRes.data.user.role === "PLATFORM_ADMIN";
     setIsPlatformAdmin(isPA);
 
-    // Platform admins don't need org-specific stats
-    if (isPA) return;
+    // Platform admins don't need org-specific stats — return early to render
+    // the dedicated operations console ASAP (no waiting on org-only APIs).
+    if (isPA) {
+      setLoading(false);
+      return;
+    }
 
-    // Org users: fetch org-specific data
+    // Org users: fetch org-specific data in parallel
     const [statsRes, electionsRes] = await Promise.all([
       apiFetch<AdminStatsResponse>("/api/admin/stats"),
       apiFetch<{ elections: ElectionDTO[] }>("/api/elections"),
     ]);
 
+    setLoading(false);
     if (statsRes.success && statsRes.data) {
       setStats(statsRes.data);
     } else {

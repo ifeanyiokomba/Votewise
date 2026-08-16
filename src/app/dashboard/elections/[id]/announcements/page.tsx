@@ -371,10 +371,10 @@ export default function AnnouncementsPage({
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-6 px-2 text-[10px] text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                className="h-9 px-3 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
                                 onClick={() => setDeleteTarget(a)}
                               >
-                                <Trash2 className="h-3 w-3" /> Delete
+                                <Trash2 className="h-3.5 w-3.5" /> Delete
                               </Button>
                             </div>
                           </div>

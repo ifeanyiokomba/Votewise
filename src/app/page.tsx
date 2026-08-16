@@ -318,20 +318,20 @@ function Hero() {
               </Button>
             </div>
 
-            <dl className="mt-10 grid max-w-md grid-cols-3 gap-4 border-t border-border/60 pt-6">
+            <dl className="mt-10 grid max-w-md grid-cols-3 gap-2 border-t border-border/60 pt-6 sm:gap-4">
               <div>
-                <dt className="text-xs uppercase tracking-wide text-muted-foreground">
+                <dt className="text-[10px] uppercase tracking-wide text-muted-foreground sm:text-xs">
                   Voters supported
                 </dt>
-                <dd className="mt-1 text-2xl font-bold tabular-nums">
+                <dd className="mt-1 text-xl font-bold tabular-nums sm:text-2xl">
                   <CountUpNumber target={10000} />+
                 </dd>
               </div>
               <div>
-                <dt className="text-xs uppercase tracking-wide text-muted-foreground">
+                <dt className="text-[10px] uppercase tracking-wide text-muted-foreground sm:text-xs">
                   Auditable
                 </dt>
-                <dd className="mt-1 text-2xl font-bold tabular-nums">
+                <dd className="mt-1 text-xl font-bold tabular-nums sm:text-2xl">
                   <CountUpNumber target={100} />%
                 </dd>
               </div>

@@ -10,7 +10,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn, formatRelative, initials } from "@/lib/utils";
-import { apiFetch } from "@/lib/api-fetch";
 import { toast } from "sonner";
 import {
   MessageCircle,
@@ -22,6 +21,7 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
+  ArrowLeft,
 } from "lucide-react";
 
 interface ChatSession {
@@ -57,6 +57,10 @@ export function AdminChatDashboard({ adminId, adminName }: { adminId: string; ad
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Mobile view state — toggles between session list and active chat
+  // On desktop, both are shown side-by-side.
+  const [mobileView, setMobileView] = useState<"list" | "chat">("list");
 
   // Connect to socket.io
   useEffect(() => {
@@ -110,6 +114,7 @@ export function AdminChatDashboard({ adminId, adminName }: { adminId: string; ad
     socket.emit("admin:claim", { sessionId });
     setActiveSession(sessionId);
     setMessages([]);
+    setMobileView("chat"); // mobile: switch to chat view after picking a session
   }, [socket]);
 
   const sendMessage = useCallback(() => {
@@ -143,8 +148,11 @@ export function AdminChatDashboard({ adminId, adminName }: { adminId: string; ad
 
   return (
     <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
-      {/* ─── Session List ─── */}
-      <Card className="h-[calc(100vh-12rem)] overflow-hidden">
+      {/* ─── Session List ─── hidden on mobile when viewing an active chat */}
+      <Card className={cn(
+        "h-[calc(100dvh-9rem)] overflow-hidden lg:h-[calc(100vh-12rem)]",
+        mobileView === "chat" && "hidden lg:block"
+      )}>
         <CardHeader className="border-b pb-3">
           <CardTitle className="flex items-center gap-2 text-sm">
             <MessageCircle className="h-4 w-4 text-primary" />
@@ -155,7 +163,7 @@ export function AdminChatDashboard({ adminId, adminName }: { adminId: string; ad
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <ScrollArea className="h-[calc(100vh-16rem)] scroll-area-custom">
+          <ScrollArea className="h-[calc(100dvh-13rem)] lg:h-[calc(100vh-16rem)] scroll-area-custom">
             {sessions.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-12 text-center">
                 <MessageCircle className="h-8 w-8 text-muted-foreground/40" />
@@ -197,20 +205,33 @@ export function AdminChatDashboard({ adminId, adminName }: { adminId: string; ad
         </CardContent>
       </Card>
 
-      {/* ─── Active Chat ─── */}
-      <Card className="h-[calc(100vh-12rem)] overflow-hidden">
+      {/* ─── Active Chat ─── hidden on mobile when browsing the session list */}
+      <Card className={cn(
+        "h-[calc(100dvh-9rem)] overflow-hidden lg:h-[calc(100vh-12rem)]",
+        mobileView === "list" && "hidden lg:block"
+      )}>
         {activeSession ? (
           <div className="flex h-full flex-col">
             {/* Chat header */}
             <div className="border-b p-3">
               <div className="flex items-center gap-2">
-                <Avatar className="h-8 w-8">
+                {/* Mobile back button */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 shrink-0 lg:hidden"
+                  onClick={() => setMobileView("list")}
+                  aria-label="Back to inbox"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <Avatar className="h-8 w-8 shrink-0">
                   <AvatarFallback className="bg-primary/10 text-xs text-primary">
                     {initials(sessions.find(s => s.id === activeSession)?.voterName ?? "?")}
                   </AvatarFallback>
                 </Avatar>
-                <div>
-                  <p className="text-sm font-semibold">{sessions.find(s => s.id === activeSession)?.voterName}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold">{sessions.find(s => s.id === activeSession)?.voterName}</p>
                   <p className="text-[10px] text-muted-foreground">
                     {sessions.find(s => s.id === activeSession)?.status === "assigned" ? "You are assisting" : "Waiting for claim"}
                   </p>
@@ -253,10 +274,10 @@ export function AdminChatDashboard({ adminId, adminName }: { adminId: string; ad
             {/* Input */}
             <div className="border-t p-2">
               <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+                <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
                   {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
                 </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => cameraInputRef.current?.click()} disabled={uploading}>
+                <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => cameraInputRef.current?.click()} disabled={uploading}>
                   <Camera className="h-4 w-4" />
                 </Button>
                 <Input
@@ -266,7 +287,7 @@ export function AdminChatDashboard({ adminId, adminName }: { adminId: string; ad
                   placeholder="Type your reply…"
                   className="flex-1"
                 />
-                <Button size="icon" className="h-8 w-8" onClick={sendMessage} disabled={!input.trim()}>
+                <Button size="icon" className="h-9 w-9 shrink-0" onClick={sendMessage} disabled={!input.trim()}>
                   <Send className="h-4 w-4" />
                 </Button>
               </div>

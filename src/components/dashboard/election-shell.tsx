@@ -130,7 +130,7 @@ export function ElectionShell({
         transition={{ duration: 0.25 }}
       >
         <Card className="overflow-hidden">
-          <CardHeader className="border-b bg-muted/20 px-6 py-5">
+          <CardHeader className="border-b bg-muted/20 px-4 py-4 sm:px-6 sm:py-5">
             {loading || !election ? (
               <div className="space-y-2">
                 <Skeleton className="h-3 w-24" />
@@ -195,7 +195,7 @@ export function ElectionShell({
           </CardHeader>
 
           {!loading && election && (
-            <CardContent className="px-6 py-4">
+            <CardContent className="px-4 py-4 sm:px-6">
               <LifecycleControl
                 election={election}
                 onTransitioned={fetchElection}

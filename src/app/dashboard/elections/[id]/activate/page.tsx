@@ -488,7 +488,7 @@ export default function ActivatePage({
                               How should the Votewise platform admin respond to your request? You can also
                               include your details below for an easy activation call.
                             </p>
-                            <div className="grid grid-cols-3 gap-2">
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                               {([
                             { value: "EMAIL", label: "Email", icon: "📧", desc: "Reach me by email" },
                             { value: "WHATSAPP", label: "WhatsApp", icon: "💬", desc: "Chat on WhatsApp" },

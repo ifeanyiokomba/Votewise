@@ -411,7 +411,7 @@ export function SupportChatWidget({ electionId, voter }: SupportChatWidgetProps)
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className="fixed bottom-6 right-6 z-50 flex h-[34rem] w-[calc(100vw-3rem)] max-w-sm flex-col overflow-hidden rounded-2xl border bg-card shadow-2xl"
+            className="fixed bottom-6 right-6 z-50 flex h-[min(34rem,calc(100dvh-3rem))] w-[calc(100vw-3rem)] max-w-sm flex-col overflow-hidden rounded-2xl border bg-card shadow-2xl"
           >
             {/* Header */}
             <div className="flex items-center justify-between border-b bg-primary p-3 text-primary-foreground">
@@ -450,7 +450,7 @@ export function SupportChatWidget({ electionId, voter }: SupportChatWidgetProps)
                   variant="ghost"
                   size="sm"
                   onClick={() => switchMode(mode === "ai" ? "human" : "ai")}
-                  className="h-7 gap-1 px-2 text-[10px] text-primary-foreground hover:bg-white/10"
+                  className="h-9 gap-1 px-2 text-[10px] text-primary-foreground hover:bg-white/10"
                   title={mode === "ai" ? "Switch to live agent" : "Switch to AI assistant"}
                 >
                   {mode === "ai" ? (
@@ -467,7 +467,7 @@ export function SupportChatWidget({ electionId, voter }: SupportChatWidgetProps)
                   variant="ghost"
                   size="icon"
                   onClick={() => setOpen(false)}
-                  className="h-8 w-8 text-primary-foreground hover:bg-white/10"
+                  className="h-9 w-9 text-primary-foreground hover:bg-white/10"
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -516,7 +516,7 @@ export function SupportChatWidget({ electionId, voter }: SupportChatWidgetProps)
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 shrink-0"
+                  className="h-9 w-8 shrink-0"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploading}
                   aria-label="Attach file"
@@ -528,7 +528,7 @@ export function SupportChatWidget({ electionId, voter }: SupportChatWidgetProps)
                 <Button
                   variant="ghost"
                   size="icon"
-                  className={cn("h-8 w-8 shrink-0", photoRequested && "animate-pulse bg-blue-100 dark:bg-blue-950")}
+                  className={cn("h-9 w-8 shrink-0", photoRequested && "animate-pulse bg-blue-100 dark:bg-blue-950")}
                   onClick={() => cameraInputRef.current?.click()}
                   disabled={uploading}
                   aria-label="Take photo"
@@ -548,7 +548,7 @@ export function SupportChatWidget({ electionId, voter }: SupportChatWidgetProps)
 
                 <Button
                   size="icon"
-                  className="h-8 w-8 shrink-0"
+                  className="h-9 w-9 shrink-0"
                   onClick={sendMessage}
                   disabled={!input.trim() || loading}
                   aria-label="Send message"

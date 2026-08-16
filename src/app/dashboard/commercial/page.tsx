@@ -481,21 +481,21 @@ export default function CommercialPage() {
                   )}
                   {/* Quick response actions */}
                   <div className="flex flex-wrap gap-2 pt-2">
-                    <Button size="sm" variant="outline" asChild className="h-7 text-[11px]">
+                    <Button size="sm" variant="outline" asChild className="h-9 text-xs">
                       <a href={`mailto:${selected.contactEmail}?subject=Re: Election activation negotiation`}>
-                        <Mail className="h-3 w-3" /> Email
+                        <Mail className="h-3.5 w-3.5" /> Email
                       </a>
                     </Button>
                     {selected.contactPhone && (
                       <>
-                        <Button size="sm" variant="outline" asChild className="h-7 text-[11px]">
+                        <Button size="sm" variant="outline" asChild className="h-9 text-xs">
                           <a href={`tel:${selected.contactPhone}`}>
-                            <Phone className="h-3 w-3" /> Call
+                            <Phone className="h-3.5 w-3.5" /> Call
                           </a>
                         </Button>
-                        <Button size="sm" variant="outline" asChild className="h-7 text-[11px]">
+                        <Button size="sm" variant="outline" asChild className="h-9 text-xs">
                           <a href={`https://wa.me/${selected.contactPhone.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener">
-                            <MessageSquare className="h-3 w-3" /> WhatsApp
+                            <MessageSquare className="h-3.5 w-3.5" /> WhatsApp
                           </a>
                         </Button>
                       </>

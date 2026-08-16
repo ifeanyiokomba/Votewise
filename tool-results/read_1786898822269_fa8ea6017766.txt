@@ -1,0 +1,690 @@
+     1→import Link from "next/link";
+     2→import type { Metadata } from "next";
+     3→import {
+     4→  Check,
+     5→  CheckCircle2,
+     6→  X,
+     7→  ArrowRight,
+     8→  Settings2,
+     9→  CreditCard,
+    10→  Rocket,
+    11→  Wallet,
+    12→  Sparkles,
+    13→  HelpCircle,
+    14→} from "lucide-react";
+    15→
+    16→import { Button } from "@/components/ui/button";
+    17→import { Badge } from "@/components/ui/badge";
+    18→import { Card, CardContent } from "@/components/ui/card";
+    19→import {
+    20→  Accordion,
+    21→  AccordionContent,
+    22→  AccordionItem,
+    23→  AccordionTrigger,
+    24→} from "@/components/ui/accordion";
+    25→import {
+    26→  Table,
+    27→  TableBody,
+    28→  TableCell,
+    29→  TableHead,
+    30→  TableHeader,
+    31→  TableRow,
+    32→} from "@/components/ui/table";
+    33→import {
+    34→  Breadcrumb,
+    35→  BreadcrumbItem,
+    36→  BreadcrumbLink,
+    37→  BreadcrumbList,
+    38→  BreadcrumbPage,
+    39→  BreadcrumbSeparator,
+    40→} from "@/components/ui/breadcrumb";
+    41→import { Reveal } from "@/components/shared/reveal";
+    42→import { SiteHeader } from "@/components/shared/site-header";
+    43→import { SiteFooter } from "@/components/shared/site-footer";
+    44→import { SUBSCRIPTION_PLANS, PRICING_CONFIG } from "@/lib/constants";
+    45→import { formatCurrency, formatNumber, cn } from "@/lib/utils";
+    46→
+    47→export const metadata: Metadata = {
+    48→  title: "Pricing",
+    49→  description:
+    50→    "Simple subscription plans and transparent per-voter pricing for elections of any size. Start free, scale to enterprise.",
+    51→};
+    52→
+    53→const ACTIVATION_STEPS = [
+    54→  {
+    55→    icon: Settings2,
+    56→    title: "Configure election",
+    57→    description:
+    58→      "Admin sets up the election, positions, candidates and voter list inside the dashboard.",
+    59→  },
+    60→  {
+    61→    icon: Wallet,
+    62→    title: "Choose a plan",
+    63→    description:
+    64→      "Pick the subscription tier that matches your voter count and election volume.",
+    65→  },
+    66→  {
+    67→    icon: CreditCard,
+    68→    title: "Pay & activate",
+    69→    description:
+    70→      "Pay per-voter (₦400 standard, ₦300 bulk above 2,000) to activate the election.",
+    71→  },
+    72→  {
+    73→    icon: Rocket,
+    74→    title: "Go LIVE",
+    75→    description:
+    76→      "Status flips to LIVE. Voters verify, cast ballots and results stream in real time.",
+    77→  },
+    78→];
+    79→
+    80→const COMPARISON_ROWS: {
+    81→  label: string;
+    82→  values: (string | boolean)[];
+    83→}[] = [
+    84→  {
+    85→    label: "Active elections",
+    86→    values: ["1", "5", "25", "Unlimited"],
+    87→  },
+    88→  {
+    89→    label: "Max voters per election",
+    90→    values: ["100", "1,000", "10,000", "Unlimited"],
+    91→  },
+    92→  {
+    93→    label: "Email OTP verification",
+    94→    values: [true, true, true, true],
+    95→  },
+    96→  {
+    97→    label: "SMS OTP verification",
+    98→    values: [false, true, true, true],
+    99→  },
+   100→  {
+   101→    label: "All verification channels",
+   102→    values: [false, false, true, true],
+   103→  },
+   104→  {
+   105→    label: "Real-time monitoring",
+   106→    values: [false, true, true, true],
+   107→  },
+   108→  {
+   109→    label: "Audit logs",
+   110→    values: [false, true, true, true],
+   111→  },
+   112→  {
+   113→    label: "Advanced analytics",
+   114→    values: [false, false, true, true],
+   115→  },
+   116→  {
+   117→    label: "Observers & auditor roles",
+   118→    values: [false, false, true, true],
+   119→  },
+   120→  {
+   121→    label: "Priority support",
+   122→    values: [false, false, true, true],
+   123→  },
+   124→  {
+   125→    label: "Custom domains",
+   126→    values: [false, false, false, true],
+   127→  },
+   128→  {
+   129→    label: "Dedicated infrastructure",
+   130→    values: [false, false, false, true],
+   131→  },
+   132→  {
+   133→    label: "SLA & onboarding",
+   134→    values: [false, false, false, true],
+   135→  },
+   136→  {
+   137→    label: "Dedicated account manager",
+   138→    values: [false, false, false, true],
+   139→  },
+   140→];
+   141→
+   142→const PRICING_FAQ = [
+   143→  {
+   144→    q: "What is the difference between a subscription and per-voter pricing?",
+   145→    a: "A subscription (Free, Starter, Professional, Enterprise) sets your platform limits — how many active elections and voters you can hold at once. Per-voter pricing is the activation fee you pay to take a specific election LIVE, billed per eligible voter on that election's roll.",
+   146→  },
+   147→  {
+   148→    q: "When do I pay the per-voter activation fee?",
+   149→    a: "You pay it when you flip an election's status to LIVE and the system detects it is unpaid. You can pay immediately, or — for Enterprise and large institutions — submit a negotiation request for a custom amount before paying.",
+   150→  },
+   151→  {
+   152→    q: "How does bulk per-voter pricing work?",
+   153→    a: `Standard per-voter rate is ${formatCurrency(
+   154→      PRICING_CONFIG.standardRate
+   155→    )}. Once an election has more than ${formatNumber(
+   156→      PRICING_CONFIG.bulkThreshold
+   157→    )} voters, the rate drops to ${formatCurrency(
+   158→      PRICING_CONFIG.bulkRate
+   159→    )} per voter for the voters above the threshold.`,
+   160→  },
+   161→  {
+   162→    q: "Can I switch plans later?",
+   163→    a: "Yes. You can upgrade or cancel your subscription at any time from the admin dashboard. Upgrades take effect immediately; cancellations apply at the end of the current cycle.",
+   164→  },
+   165→  {
+   166→    q: "Do you offer custom pricing for very large institutions?",
+   167→    a: "Absolutely. Enterprise customers get unlimited voters and elections, custom domains, dedicated infrastructure and an account manager. Submit a negotiation request from any election's activation screen and our team will respond.",
+   168→  },
+   169→  {
+   170→    q: "Is there a free plan I can test with?",
+   171→    a: `Yes. The Free plan supports up to ${formatNumber(
+   172→      SUBSCRIPTION_PLANS[0].maxVoters
+   173→    )} voters and one active election — enough to run a small club or pilot election end-to-end without a credit card.`,
+   174→  },
+   175→];
+   176→
+   177→export default function PricingPage() {
+   178→  return (
+   179→    <div className="flex min-h-screen flex-col bg-background">
+   180→      <SiteHeader />
+   181→      <main className="flex-1">
+   182→        <PricingHero />
+   183→        <PlanCards />
+   184→        <PerVoterPricing />
+   185→        <ActivationFlow />
+   186→        <ComparisonTable />
+   187→        <PricingFaq />
+   188→        <FinalCta />
+   189→      </main>
+   190→      <SiteFooter />
+   191→    </div>
+   192→  );
+   193→}
+   194→
+   195→/* -------------------------------------------------------------------------- */
+   196→/* Hero                                                                       */
+   197→/* -------------------------------------------------------------------------- */
+   198→
+   199→function PricingHero() {
+   200→  return (
+   201→    <section className="relative overflow-hidden border-b border-border/60">
+   202→      <div className="pointer-events-none absolute inset-0 -z-10 bg-grid" />
+   203→      <div className="pointer-events-none absolute inset-0 -z-10 bg-radial-fade" />
+   204→      <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
+   205→        <Breadcrumb>
+   206→          <BreadcrumbList>
+   207→            <BreadcrumbItem>
+   208→              <BreadcrumbLink asChild>
+   209→                <Link href="/">Home</Link>
+   210→              </BreadcrumbLink>
+   211→            </BreadcrumbItem>
+   212→            <BreadcrumbSeparator />
+   213→            <BreadcrumbItem>
+   214→              <BreadcrumbPage>Pricing</BreadcrumbPage>
+   215→            </BreadcrumbItem>
+   216→          </BreadcrumbList>
+   217→        </Breadcrumb>
+   218→
+   219→        <div className="mt-6 max-w-3xl">
+   220→          <Badge
+   221→            variant="outline"
+   222→            className="border-primary/30 bg-primary/5 px-3 py-1 text-primary"
+   223→          >
+   224→            <Sparkles className="h-3.5 w-3.5" />
+   225→            Transparent pricing
+   226→          </Badge>
+   227→          <h1 className="mt-4 text-4xl font-bold tracking-tight sm:text-5xl">
+   228→            Pay for the elections you actually run
+   229→          </h1>
+   230→          <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+   231→            Start free. Upgrade when you need more elections or voters. Every
+   232→            plan includes the full security stack — you only pay more as your
+   233→            electorate grows.
+   234→          </p>
+   235→          <p className="mt-5 inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
+   236→            <CheckCircle2 className="h-4 w-4" />
+   237→            Bulk per-voter savings above 2,000 voters — no long-term contract
+   238→            required.
+   239→          </p>
+   240→        </div>
+   241→      </div>
+   242→    </section>
+   243→  );
+   244→}
+   245→
+   246→/* -------------------------------------------------------------------------- */
+   247→/* Plan cards                                                                 */
+   248→/* -------------------------------------------------------------------------- */
+   249→
+   250→function PlanCards() {
+   251→  return (
+   252→    <section aria-labelledby="plans-heading" className="scroll-mt-24">
+   253→      <h2 id="plans-heading" className="sr-only">
+   254→        Subscription plans
+   255→      </h2>
+   256→      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+   257→        <div className="grid gap-5 lg:grid-cols-4">
+   258→          {SUBSCRIPTION_PLANS.map((plan, i) => {
+   259→            const popular = plan.id === "PROFESSIONAL";
+   260→            const priceLabel =
+   261→              plan.price < 0
+   262→                ? "Custom"
+   263→                : plan.price === 0
+   264→                  ? "Free"
+   265→                  : formatCurrency(plan.price);
+   266→            return (
+   267→              <Reveal key={plan.id} delay={i * 0.06}>
+   268→                <Card
+   269→                  className={cn(
+   270→                    "relative h-full",
+   271→                    popular && "border-primary shadow-glow"
+   272→                  )}
+   273→                >
+   274→                  {popular && (
+   275→                    <Badge className="absolute -top-3 left-1/2 -translate-x-1/2">
+   276→                      <Sparkles className="h-3 w-3" />
+   277→                      Most popular
+   278→                    </Badge>
+   279→                  )}
+   280→                  <CardContent className="flex h-full flex-col p-6">
+   281→                    <h3 className="text-base font-semibold">{plan.name}</h3>
+   282→                    <p className="mt-1 text-sm text-muted-foreground">
+   283→                      {plan.description}
+   284→                    </p>
+   285→                    <div className="mt-4 flex items-baseline gap-1">
+   286→                      <span className="text-3xl font-bold tracking-tight">
+   287→                        {priceLabel}
+   288→                      </span>
+   289→                      {plan.price > 0 && (
+   290→                        <span className="text-sm text-muted-foreground">
+   291→                          /cycle
+   292→                        </span>
+   293→                      )}
+   294→                    </div>
+   295→                    <Button
+   296→                      asChild
+   297→                      variant={popular ? "default" : "outline"}
+   298→                      className="mt-5 w-full"
+   299→                    >
+   300→                      <Link href="/register">
+   301→                        {plan.price < 0
+   302→                          ? "Contact sales"
+   303→                          : plan.price === 0
+   304→                            ? "Start free"
+   305→                            : "Choose " + plan.name}
+   306→                      </Link>
+   307→                    </Button>
+   308→                    <ul className="mt-6 space-y-2.5">
+   309→                      {plan.features.map((feat) => (
+   310→                        <li
+   311→                          key={feat}
+   312→                          className="flex items-start gap-2 text-sm"
+   313→                        >
+   314→                          <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+   315→                          <span className="text-foreground/90">{feat}</span>
+   316→                        </li>
+   317→                      ))}
+   318→                    </ul>
+   319→                  </CardContent>
+   320→                </Card>
+   321→              </Reveal>
+   322→            );
+   323→          })}
+   324→        </div>
+   325→      </div>
+   326→    </section>
+   327→  );
+   328→}
+   329→
+   330→/* -------------------------------------------------------------------------- */
+   331→/* Per-voter pricing                                                          */
+   332→/* -------------------------------------------------------------------------- */
+   333→
+   334→function PerVoterPricing() {
+   335→  return (
+   336→    <section
+   337→      aria-labelledby="pervoter-heading"
+   338→      className="scroll-mt-24 border-y border-border/60 bg-secondary/30"
+   339→    >
+   340→      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+   341→        <div className="grid items-center gap-10 lg:grid-cols-2">
+   342→          <div>
+   343→            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+   344→              Per-voter pricing
+   345→            </p>
+   346→            <h2
+   347→              id="pervoter-heading"
+   348→              className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl"
+   349→            >
+   350→              Activation is billed per voter — and gets cheaper at scale
+   351→            </h2>
+   352→            <p className="mt-4 text-base leading-relaxed text-muted-foreground">
+   353→              Beyond your subscription, taking an election LIVE costs a small
+   354→              per-voter fee based on your voter roll. It drops automatically once
+   355→              you cross the bulk threshold.
+   356→            </p>
+   357→            <ul className="mt-6 space-y-3">
+   358→              {[
+   359→                `Standard rate: ${formatCurrency(
+   360→                  PRICING_CONFIG.standardRate
+   361→                )} per voter`,
+   362→                `Bulk rate: ${formatCurrency(
+   363→                  PRICING_CONFIG.bulkRate
+   364→                )} per voter above ${formatNumber(
+   365→                  PRICING_CONFIG.bulkThreshold
+   366→                )} voters`,
+   367→                "Enterprise & government can negotiate custom amounts",
+   368→                "No hidden setup, hosting or result-publication fees",
+   369→              ].map((point) => (
+   370→                <li key={point} className="flex items-start gap-2.5">
+   371→                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+   372→                  <span className="text-sm text-foreground/90">{point}</span>
+   373→                </li>
+   374→              ))}
+   375→            </ul>
+   376→          </div>
+   377→
+   378→          <Reveal delay={0.1}>
+   379→            <Card className="overflow-hidden shadow-glow">
+   380→              <CardContent className="p-6 sm:p-8">
+   381→                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+   382→                  Cost calculator (example)
+   383→                </p>
+   384→                <div className="mt-5 space-y-3">
+   385→                  <PricingRow
+   386→                    label={`${formatNumber(2000)} voters @ standard`}
+   387→                    value={formatCurrency(2000 * PRICING_CONFIG.standardRate)}
+   388→                    badge="Standard"
+   389→                  />
+   390→                  <PricingRow
+   391→                    label={`+${formatNumber(
+   392→                      3000
+   393→                    )} voters @ bulk (${formatCurrency(
+   394→                      PRICING_CONFIG.bulkRate
+   395→                    )})`}
+   396→                    value={formatCurrency(3000 * PRICING_CONFIG.bulkRate)}
+   397→                    badge="Bulk"
+   398→                    badgeTone="emerald"
+   399→                  />
+   400→                  <div className="my-2 h-px bg-border" />
+   401→                  <div className="flex items-center justify-between">
+   402→                    <span className="text-sm font-medium">
+   403→                      Example: {formatNumber(5000)}-voter election
+   404→                    </span>
+   405→                    <span className="text-xl font-bold tabular-nums">
+   406→                      {formatCurrency(
+   407→                        2000 * PRICING_CONFIG.standardRate +
+   408→                          3000 * PRICING_CONFIG.bulkRate
+   409→                      )}
+   410→                    </span>
+   411→                  </div>
+   412→                  <p className="text-xs text-muted-foreground">
+   413→                    vs {formatCurrency(
+   414→                      5000 * PRICING_CONFIG.standardRate
+   415→                    )} without bulk savings — you save{" "}
+   416→                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+   417→                      {formatCurrency(
+   418→                        5000 * PRICING_CONFIG.standardRate -
+   419→                          (2000 * PRICING_CONFIG.standardRate +
+   420→                            3000 * PRICING_CONFIG.bulkRate)
+   421→                      )}
+   422→                    </span>
+   423→                    .
+   424→                  </p>
+   425→                </div>
+   426→              </CardContent>
+   427→            </Card>
+   428→          </Reveal>
+   429→        </div>
+   430→      </div>
+   431→    </section>
+   432→  );
+   433→}
+   434→
+   435→function PricingRow({
+   436→  label,
+   437→  value,
+   438→  badge,
+   439→  badgeTone = "default",
+   440→}: {
+   441→  label: string;
+   442→  value: string;
+   443→  badge?: string;
+   444→  badgeTone?: "default" | "emerald";
+   445→}) {
+   446→  return (
+   447→    <div className="flex items-center justify-between gap-3">
+   448→      <span className="flex items-center gap-2 text-sm text-muted-foreground">
+   449→        {badge && (
+   450→          <Badge
+   451→            variant="outline"
+   452→            className={cn(
+   453→              "px-1.5 py-0 text-[10px] font-semibold",
+   454→              badgeTone === "emerald"
+   455→                ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300"
+   456→                : "bg-muted text-muted-foreground"
+   457→            )}
+   458→          >
+   459→            {badge}
+   460→          </Badge>
+   461→        )}
+   462→        {label}
+   463→      </span>
+   464→      <span className="text-sm font-semibold tabular-nums">{value}</span>
+   465→    </div>
+   466→  );
+   467→}
+   468→
+   469→/* -------------------------------------------------------------------------- */
+   470→/* Activation flow                                                            */
+   471→/* -------------------------------------------------------------------------- */
+   472→
+   473→function ActivationFlow() {
+   474→  return (
+   475→    <section aria-labelledby="activation-heading" className="scroll-mt-24">
+   476→      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+   477→        <div className="max-w-2xl">
+   478→          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+   479→            Election activation flow
+   480→          </p>
+   481→          <h2
+   482→            id="activation-heading"
+   483→            className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl"
+   484→          >
+   485→            From configuration to LIVE in four steps
+   486→          </h2>
+   487→          <p className="mt-4 text-base leading-relaxed text-muted-foreground">
+   488→            The admin dashboard walks you through activation. Payment unlocks
+   489→            the LIVE status — voters can then verify and cast ballots.
+   490→          </p>
+   491→        </div>
+   492→
+   493→        <div className="relative mt-12">
+   494→          <div
+   495→            aria-hidden
+   496→            className="absolute left-0 right-0 top-7 hidden h-px bg-border lg:block"
+   497→          />
+   498→          <ol className="grid gap-8 lg:grid-cols-4">
+   499→            {ACTIVATION_STEPS.map((step, i) => (
+   500→              <Reveal key={step.title} delay={i * 0.08} className="relative">
+   501→                <div className="flex items-center gap-4 lg:block">
+   502→                  <div className="relative z-10 grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
+   503→                    <step.icon className="h-5 w-5" />
+   504→                  </div>
+   505→                  <h3 className="text-base font-semibold lg:mt-5">
+   506→                    {step.title}
+   507→                  </h3>
+   508→                </div>
+   509→                <p className="mt-3 text-sm leading-relaxed text-muted-foreground lg:pr-4">
+   510→                  {step.description}
+   511→                </p>
+   512→              </Reveal>
+   513→            ))}
+   514→          </ol>
+   515→        </div>
+   516→      </div>
+   517→    </section>
+   518→  );
+   519→}
+   520→
+   521→/* -------------------------------------------------------------------------- */
+   522→/* Comparison table                                                           */
+   523→/* -------------------------------------------------------------------------- */
+   524→
+   525→function ComparisonTable() {
+   526→  const plans = SUBSCRIPTION_PLANS;
+   527→  return (
+   528→    <section
+   529→      aria-labelledby="comparison-heading"
+   530→      className="scroll-mt-24 border-y border-border/60 bg-secondary/30"
+   531→    >
+   532→      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+   533→        <div className="max-w-2xl">
+   534→          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+   535→            Compare plans
+   536→          </p>
+   537→          <h2
+   538→            id="comparison-heading"
+   539→            className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl"
+   540→          >
+   541→            Every feature, side by side
+   542→          </h2>
+   543→          <p className="mt-4 text-base leading-relaxed text-muted-foreground">
+   544→            All plans ship with the security stack. Higher tiers add scale,
+   545→            channels and institutional controls.
+   546→          </p>
+   547→        </div>
+   548→
+   549→        <Card className="mt-10 overflow-hidden">
+   550→          <Table>
+   551→            <TableHeader>
+   552→              <TableRow>
+   553→                <TableHead className="min-w-[180px] text-sm font-semibold">
+   554→                  Feature
+   555→                </TableHead>
+   556→                {plans.map((plan) => (
+   557→                  <TableHead
+   558→                    key={plan.id}
+   559→                    className={cn(
+   560→                      "text-center text-sm font-semibold",
+   561→                      plan.id === "PROFESSIONAL" && "text-primary"
+   562→                    )}
+   563→                  >
+   564→                    {plan.name}
+   565→                    {plan.id === "PROFESSIONAL" && (
+   566→                      <span className="mt-0.5 block text-[10px] font-medium uppercase tracking-wide text-primary/80">
+   567→                        Most popular
+   568→                      </span>
+   569→                    )}
+   570→                  </TableHead>
+   571→                ))}
+   572→              </TableRow>
+   573→            </TableHeader>
+   574→            <TableBody>
+   575→              {COMPARISON_ROWS.map((row) => (
+   576→                <TableRow key={row.label}>
+   577→                  <TableCell className="font-medium">{row.label}</TableCell>
+   578→                  {row.values.map((val, idx) => (
+   579→                    <TableCell
+   580→                      key={idx}
+   581→                      className={cn(
+   582→                        "text-center",
+   583→                        plans[idx].id === "PROFESSIONAL" && "bg-primary/5"
+   584→                      )}
+   585→                    >
+   586→                      {typeof val === "boolean" ? (
+   587→                        val ? (
+   588→                          <Check className="mx-auto h-4 w-4 text-primary" />
+   589→                        ) : (
+   590→                          <X className="mx-auto h-4 w-4 text-muted-foreground/40" />
+   591→                        )
+   592→                      ) : (
+   593→                        <span className="text-sm tabular-nums">{val}</span>
+   594→                      )}
+   595→                    </TableCell>
+   596→                  ))}
+   597→                </TableRow>
+   598→              ))}
+   599→            </TableBody>
+   600→          </Table>
+   601→        </Card>
+   602→      </div>
+   603→    </section>
+   604→  );
+   605→}
+   606→
+   607→/* -------------------------------------------------------------------------- */
+   608→/* Pricing FAQ                                                                */
+   609→/* -------------------------------------------------------------------------- */
+   610→
+   611→function PricingFaq() {
+   612→  return (
+   613→    <section aria-labelledby="pricingfaq-heading" className="scroll-mt-24">
+   614→      <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+   615→        <div className="text-center">
+   616→          <p className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+   617→            <HelpCircle className="h-3.5 w-3.5" />
+   618→            Pricing FAQ
+   619→          </p>
+   620→          <h2
+   621→            id="pricingfaq-heading"
+   622→            className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl"
+   623→          >
+   624→            Questions about how pricing works
+   625→          </h2>
+   626→        </div>
+   627→        <Accordion type="single" collapsible className="mt-10 w-full">
+   628→          {PRICING_FAQ.map((item, i) => (
+   629→            <AccordionItem key={i} value={`item-${i}`}>
+   630→              <AccordionTrigger className="text-left text-base font-medium">
+   631→                {item.q}
+   632→              </AccordionTrigger>
+   633→              <AccordionContent className="text-sm leading-relaxed text-muted-foreground">
+   634→                {item.a}
+   635→              </AccordionContent>
+   636→            </AccordionItem>
+   637→          ))}
+   638→        </Accordion>
+   639→      </div>
+   640→    </section>
+   641→  );
+   642→}
+   643→
+   644→/* -------------------------------------------------------------------------- */
+   645→/* Final CTA                                                                  */
+   646→/* -------------------------------------------------------------------------- */
+   647→
+   648→function FinalCta() {
+   649→  return (
+   650→    <section aria-labelledby="finalcta-heading">
+   651→      <div className="mx-auto max-w-7xl px-4 pb-20 pt-4 sm:px-6 lg:px-8 lg:pb-28">
+   652→        <div className="relative overflow-hidden rounded-3xl bg-primary px-6 py-14 text-center text-primary-foreground shadow-glow sm:px-12 lg:py-16">
+   653→          <div
+   654→            aria-hidden
+   655→            className="pointer-events-none absolute inset-0 opacity-30 [background-image:linear-gradient(to_right,rgba(255,255,255,0.15)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.15)_1px,transparent_1px)] [background-size:48px_48px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,#000_30%,transparent_100%)]"
+   656→          />
+   657→          <div className="relative">
+   658→            <h2
+   659→              id="finalcta-heading"
+   660→              className="mx-auto max-w-2xl text-3xl font-bold tracking-tight sm:text-4xl"
+   661→            >
+   662→              Pick a plan and run your first election today
+   663→            </h2>
+   664→            <p className="mx-auto mt-4 max-w-xl text-base text-primary-foreground/80">
+   665→              Free to start. Upgrade only when your electorate grows. Cancel
+   666→              anytime.
+   667→            </p>
+   668→            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+   669→              <Button asChild size="lg" variant="secondary">
+   670→                <Link href="/register">
+   671→                  Get Started free
+   672→                  <ArrowRight className="h-4 w-4" />
+   673→                </Link>
+   674→              </Button>
+   675→              <Button
+   676→                asChild
+   677→                size="lg"
+   678→                variant="outline"
+   679→                className="border-white/25 bg-transparent text-primary-foreground hover:bg-white/10 hover:text-primary-foreground"
+   680→              >
+   681→                <Link href="/support">Talk to sales</Link>
+   682→              </Button>
+   683→            </div>
+   684→          </div>
+   685→        </div>
+   686→      </div>
+   687→    </section>
+   688→  );
+   689→}
+   690→

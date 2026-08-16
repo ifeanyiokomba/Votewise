@@ -407,35 +407,35 @@ function VerifyInner() {
                   </Button>
                 </form>
 
-                <div className="mt-5 flex items-center justify-between text-sm">
+                <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-sm">
                   <button
                     type="button"
                     onClick={() => router.push(`/vote/${electionId}`)}
-                    className="inline-flex items-center gap-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:underline"
+                    className="inline-flex min-h-11 items-center gap-1 rounded-md px-3 py-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:underline"
                   >
-                    <ChevronLeft className="size-3.5" />
+                    <ChevronLeft className="size-4" />
                     Back
                   </button>
                   <button
                     type="button"
                     onClick={() => void sendOtp(false)}
                     disabled={resendIn > 0 || verifying}
-                    className="inline-flex items-center gap-1.5 font-medium text-primary transition-opacity disabled:opacity-50 focus-visible:outline-none focus-visible:underline"
+                    className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-3 py-2 font-medium text-primary transition-opacity hover:bg-primary/5 disabled:opacity-50 focus-visible:outline-none focus-visible:underline"
                   >
-                    <RefreshCw className="size-3.5" />
+                    <RefreshCw className="size-4" />
                     {resendIn > 0 ? `Resend in ${resendIn}s` : "Resend code"}
                   </button>
                 </div>
 
                 {/* Channel switcher — voter can choose different channel for resend */}
                 {resendIn === 0 && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     <span>Resend via:</span>
                     <button
                       type="button"
                       onClick={() => { setChannel("EMAIL"); void sendOtp(false); }}
                       disabled={verifying}
-                      className="rounded-md border px-2 py-0.5 font-medium text-primary hover:bg-primary/5 disabled:opacity-50"
+                      className="inline-flex min-h-9 items-center rounded-md border px-3 py-1.5 font-medium text-primary hover:bg-primary/5 disabled:opacity-50"
                     >
                       Email
                     </button>
@@ -443,7 +443,7 @@ function VerifyInner() {
                       type="button"
                       onClick={() => { setChannel("SMS"); void sendOtp(false); }}
                       disabled={verifying}
-                      className="rounded-md border px-2 py-0.5 font-medium text-primary hover:bg-primary/5 disabled:opacity-50"
+                      className="inline-flex min-h-9 items-center rounded-md border px-3 py-1.5 font-medium text-primary hover:bg-primary/5 disabled:opacity-50"
                     >
                       SMS
                     </button>
@@ -451,7 +451,7 @@ function VerifyInner() {
                       type="button"
                       onClick={() => { setChannel("WHATSAPP"); void sendOtp(false); }}
                       disabled={verifying}
-                      className="rounded-md border px-2 py-0.5 font-medium text-primary hover:bg-primary/5 disabled:opacity-50"
+                      className="inline-flex min-h-9 items-center rounded-md border px-3 py-1.5 font-medium text-primary hover:bg-primary/5 disabled:opacity-50"
                     >
                       WhatsApp
                     </button>

@@ -62,9 +62,9 @@ export default async function CompareReportPage() {
   });
 
   return (
-    <div className="min-h-screen bg-white p-8 text-zinc-900 print:p-0 lg:p-12">
+    <div className="min-h-screen bg-white p-4 text-zinc-900 print:p-0 sm:p-8 lg:p-12">
       {/* Controls */}
-      <div className="mb-8 flex items-center justify-between print:hidden">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-3 print:hidden">
         <Link href="/dashboard/compare">
           <Button variant="outline" size="sm">
             ← Back to comparison
@@ -75,7 +75,7 @@ export default async function CompareReportPage() {
 
       {/* Report header */}
       <div className="mb-10 border-b-2 border-zinc-900 pb-6">
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="mb-2 flex items-center gap-2">
               <div className="grid h-10 w-10 place-items-center rounded-lg bg-emerald-600 text-white">
@@ -96,7 +96,7 @@ export default async function CompareReportPage() {
       </div>
 
       {/* Summary stats */}
-      <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
         <div className="flex items-center gap-3 rounded-lg border border-zinc-200 p-4">
           <BarChart3 className="h-5 w-5 text-emerald-600" />
           <div>
@@ -143,8 +143,8 @@ export default async function CompareReportPage() {
                       />
                     )}
                   </div>
-                  <div className="w-48 shrink-0 truncate text-sm font-medium">{e.name}</div>
-                  <div className="h-6 flex-1 overflow-hidden rounded-full bg-zinc-100">
+                  <div className="w-24 shrink-0 truncate text-sm font-medium sm:w-48">{e.name}</div>
+                  <div className="h-6 min-w-[60px] flex-1 overflow-hidden rounded-full bg-zinc-100">
                     <div
                       className="flex h-full items-center justify-end rounded-full bg-emerald-500 px-2 text-[10px] font-bold text-white"
                       style={{ width: `${Math.max(e.turnout, 5)}%` }}
@@ -152,8 +152,8 @@ export default async function CompareReportPage() {
                       {formatPercent(e.turnout)}
                     </div>
                   </div>
-                  <div className="w-32 shrink-0 text-right text-xs text-zinc-600">
-                    {formatNumber(e.votes)}/{formatNumber(e.voters)} voters
+                  <div className="w-20 shrink-0 text-right text-xs text-zinc-600 sm:w-32">
+                    {formatNumber(e.votes)}/{formatNumber(e.voters)}
                   </div>
                 </div>
               ))}
@@ -164,7 +164,8 @@ export default async function CompareReportPage() {
       {/* Detailed comparison table */}
       <div className="break-inside-avoid">
         <h2 className="mb-4 text-lg font-bold">Detailed Comparison</h2>
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[700px] text-sm">
           <thead>
             <tr className="border-b-2 border-zinc-300 text-left text-xs uppercase tracking-wide text-zinc-500">
               <th className="pb-2 pr-4 font-medium">Election</th>
@@ -209,11 +210,13 @@ export default async function CompareReportPage() {
             ))}
           </tbody>
         </table>
+        </div>
+        <p className="mt-2 text-xs text-zinc-500 sm:hidden">Swipe to compare →</p>
       </div>
 
       {/* Footer */}
       <div className="mt-12 border-t-2 border-zinc-900 pt-4 text-xs text-zinc-500">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="font-semibold text-zinc-700">Votewise — Secure Election Infrastructure</p>
             <p>
