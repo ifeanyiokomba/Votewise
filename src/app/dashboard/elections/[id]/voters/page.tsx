@@ -4,6 +4,15 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -29,6 +38,7 @@ import {
   Loader2,
   CheckCircle2,
   XCircle,
+  UserPlus,
 } from "lucide-react";
 import { formatNumber, maskEmail, maskPhone } from "@/lib/utils";
 import type { VoterDTO } from "@/components/dashboard/types";
@@ -48,6 +58,9 @@ export default function VotersPage({
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [importOpen, setImportOpen] = useState(false);
+  const [addVoterOpen, setAddVoterOpen] = useState(false);
+  const [voterForm, setVoterForm] = useState({ firstName: "", lastName: "", email: "", phone: "", matricNumber: "", department: "", faculty: "", level: "" });
+  const [addingVoter, setAddingVoter] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -127,9 +140,14 @@ export default function VotersPage({
               Manage the voter roll. Toggle eligibility to control who can vote.
             </p>
           </div>
-          <Button onClick={() => setImportOpen(true)} disabled={!electionId}>
-            <Upload className="h-4 w-4" /> Import voters
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setAddVoterOpen(true)} disabled={!electionId}>
+              <UserPlus className="h-4 w-4" /> Add voter
+            </Button>
+            <Button onClick={() => setImportOpen(true)} disabled={!electionId}>
+              <Upload className="h-4 w-4" /> Import voters
+            </Button>
+          </div>
         </div>
 
         {/* Summary pills */}
@@ -296,6 +314,88 @@ export default function VotersPage({
         onOpenChange={setImportOpen}
         onImported={load}
       />
+
+      {/* Add voter dialog */}
+      <Dialog open={addVoterOpen} onOpenChange={setAddVoterOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-primary" />
+              Add voter manually
+            </DialogTitle>
+            <DialogDescription>
+              Register a single voter. They&apos;ll be able to verify and vote once the election is live.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="firstName">First name *</Label>
+                <Input id="firstName" value={voterForm.firstName} onChange={(e) => setVoterForm({ ...voterForm, firstName: e.target.value })} placeholder="John" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="lastName">Last name *</Label>
+                <Input id="lastName" value={voterForm.lastName} onChange={(e) => setVoterForm({ ...voterForm, lastName: e.target.value })} placeholder="Doe" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" type="email" value={voterForm.email} onChange={(e) => setVoterForm({ ...voterForm, email: e.target.value })} placeholder="john@org.edu.ng" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="phone">Phone</Label>
+                <Input id="phone" value={voterForm.phone} onChange={(e) => setVoterForm({ ...voterForm, phone: e.target.value })} placeholder="+2348012345678" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="matric">Matric / ID number</Label>
+                <Input id="matric" value={voterForm.matricNumber} onChange={(e) => setVoterForm({ ...voterForm, matricNumber: e.target.value })} placeholder="UNILAG/2020/123" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="dept">Department</Label>
+                <Input id="dept" value={voterForm.department} onChange={(e) => setVoterForm({ ...voterForm, department: e.target.value })} placeholder="Computer Science" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="faculty">Faculty</Label>
+                <Input id="faculty" value={voterForm.faculty} onChange={(e) => setVoterForm({ ...voterForm, faculty: e.target.value })} placeholder="Engineering" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="level">Level</Label>
+                <Input id="level" value={voterForm.level} onChange={(e) => setVoterForm({ ...voterForm, level: e.target.value })} placeholder="300" />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">* At least one of email, phone, or matric number is required for OTP verification.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddVoterOpen(false)}>Cancel</Button>
+            <Button
+              disabled={addingVoter || !voterForm.firstName.trim() || !voterForm.lastName.trim()}
+              onClick={async () => {
+                setAddingVoter(true);
+                const res = await apiFetch(`/api/elections/${electionId}/voters/add`, {
+                  method: "POST",
+                  body: JSON.stringify(voterForm),
+                });
+                setAddingVoter(false);
+                if (res.success) {
+                  toast.success("Voter added", { description: `${voterForm.firstName} ${voterForm.lastName} has been registered.` });
+                  setVoterForm({ firstName: "", lastName: "", email: "", phone: "", matricNumber: "", department: "", faculty: "", level: "" });
+                  setAddVoterOpen(false);
+                  load();
+                } else {
+                  toast.error("Could not add voter", { description: res.error?.message });
+                }
+              }}
+            >
+              {addingVoter ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Adding…</> : <><UserPlus className="mr-2 h-4 w-4" /> Add voter</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </ElectionShell>
   );
 }

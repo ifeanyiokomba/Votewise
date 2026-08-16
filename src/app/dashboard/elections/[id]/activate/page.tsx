@@ -10,6 +10,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
+  Dialog,
+  DialogContent,
+} from "@/components/ui/dialog";
+import {
   Tabs,
   TabsContent,
   TabsList,
@@ -42,6 +46,9 @@ import {
   CircleDollarSign,
   Sparkles,
   ShieldCheck,
+  Copy,
+  ArrowRight,
+  Link as LinkIcon,
 } from "lucide-react";
 import type { CommercialActivationDTO } from "@/components/dashboard/types";
 
@@ -86,6 +93,7 @@ export default function ActivatePage({
   const [proposedAmount, setProposedAmount] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [negotiationSent, setNegotiationSent] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -137,9 +145,10 @@ export default function ActivatePage({
       reference: res.data.payment.reference,
       amount: res.data.payment.amount,
     });
-    toast.success("Payment received", {
+    toast.success("Payment received!", {
       description: `Reference: ${res.data.payment.reference}`,
     });
+    setShowCelebration(true);
     load();
   }
 
@@ -524,6 +533,88 @@ export default function ActivatePage({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ─── Celebratory Activation Window ─── */}
+      <Dialog open={showCelebration} onOpenChange={setShowCelebration}>
+        <DialogContent className="sm:max-w-lg">
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: "spring", duration: 0.5 }}
+            className="flex flex-col items-center py-6 text-center"
+          >
+            {/* Celebration animation */}
+            <motion.div
+              animate={{ rotate: [0, 10, -10, 0], scale: [1, 1.2, 1] }}
+              transition={{ duration: 0.6, repeat: 2 }}
+              className="grid h-20 w-20 place-items-center rounded-full bg-emerald-500/15 text-emerald-600 shadow-glow"
+            >
+              <CheckCircle2 className="h-10 w-10" />
+            </motion.div>
+
+            <h2 className="mt-4 text-2xl font-bold tracking-tight">Election Activated! 🎉</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Your election is now activated and ready to go live. Share the voting link below with your voters.
+            </p>
+
+            {/* Subdomain link */}
+            <div className="mt-6 w-full">
+              <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Voter voting link
+              </Label>
+              <div className="mt-1.5 flex items-center gap-2 rounded-lg border bg-muted/30 p-3">
+                <LinkIcon className="h-4 w-4 shrink-0 text-primary" />
+                <code className="flex-1 truncate text-sm font-medium">
+                  {typeof window !== "undefined" ? `${window.location.origin}/vote/${electionId}` : `/vote/${electionId}`}
+                </code>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    if (typeof navigator !== "undefined" && navigator.clipboard) {
+                      navigator.clipboard.writeText(`${window.location.origin}/vote/${electionId}`);
+                      toast.success("Link copied!", { description: "Share this with your voters." });
+                    }
+                  }}
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Org homepage link */}
+            {activation?.organizationId && (
+              <div className="mt-3 w-full">
+                <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Organization homepage
+                </Label>
+                <div className="mt-1.5 flex items-center gap-2 rounded-lg border bg-muted/30 p-3">
+                  <LinkIcon className="h-4 w-4 shrink-0 text-primary" />
+                  <code className="flex-1 truncate text-sm font-medium">
+                    {typeof window !== "undefined" ? `${window.location.origin}/org/${activation.electionId}` : ""}
+                  </code>
+                </div>
+              </div>
+            )}
+
+            <p className="mt-4 text-xs text-muted-foreground">
+              Payment reference: <span className="font-mono font-semibold">{paymentResult?.reference}</span>
+            </p>
+
+            <div className="mt-6 flex gap-3">
+              <Button variant="outline" onClick={() => setShowCelebration(false)}>
+                Close
+              </Button>
+              <Button asChild>
+                <a href={`/vote/${electionId}`} target="_blank" rel="noopener">
+                  Go to election
+                  <ArrowRight className="ml-1 h-4 w-4" />
+                </a>
+              </Button>
+            </div>
+          </motion.div>
+        </DialogContent>
+      </Dialog>
     </ElectionShell>
   );
 }
