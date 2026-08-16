@@ -1222,3 +1222,32 @@ Login page (client)
 - **Functional completeness audit**: Verify every nav item leads to a fully working feature.
 - **Real provider integrations**: SMS/email/WhatsApp providers, Paystack webhook.
 - **Automated tests**: vitest for auth pipeline, vote service, result service.
+
+---
+Task ID: CRON-12 (webDevReview round 12 — Hydration mismatch fix)
+Agent: Lead (orchestrator) — cron-triggered continuous review
+Task: Fix Radix UI hydration mismatch on landing page (ThemeToggle + SheetTrigger ID mismatch).
+
+## Current Project Status Assessment
+- Votewise is fully functional. Three services running: Next.js (:3000), socket.io monitor (:3003), election scheduler.
+- `bun run lint` passes with 0 errors, 0 warnings.
+- Previous round's fixes (auth pipeline repair, brand identity, Logo redesign) all working correctly.
+
+## Bug Found & Fixed
+
+### Hydration Mismatch on Landing Page (Radix UI ID mismatch)
+- **Symptom**: Console error "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties" with Radix-generated `id` attributes differing between server and client (e.g. `radix-_R_bindlb_` vs `radix-_R_1dindlb_`).
+- **Root cause**: The `ThemeProvider` applies the `dark` class to `<html>` in a `useEffect` (running only on the client). This causes the React tree to re-render after hydration with a different DOM structure, which makes Radix UI regenerate its internal IDs differently between server and client, causing the mismatch.
+- **Fix**: Added an inline `<script>` in `<head>` that runs synchronously **before** React hydrates. It reads the theme from `localStorage` and applies the `dark` class to `document.documentElement` immediately, so the server-rendered HTML and client-hydrated HTML have the same `dark` class from the start. This prevents the React tree re-render that caused the Radix ID mismatch.
+- **Verified**: Landing page loads with zero hydration errors. Dashboard and pricing pages also clean.
+
+## Verification Results
+- `bun run lint`: 0 errors, 0 warnings.
+- agent-browser end-to-end:
+  - ✅ Landing page (`/`): zero hydration errors, zero console errors.
+  - ✅ Login → dashboard: works correctly, no errors.
+  - ✅ Pricing page (`/pricing`): loads clean, no errors.
+  - ✅ No dev.log errors.
+
+## Files Modified
+- **Modified**: `src/app/layout.tsx` (added inline theme-init script in `<head>` to prevent hydration mismatch).
