@@ -1,6 +1,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { Logo } from "@/components/shared/logo";
+import { SupportChatWidget } from "@/components/shared/support-chat-widget";
 import { APP_NAME } from "@/lib/constants";
 import { ShieldCheck } from "lucide-react";
 
@@ -55,6 +56,9 @@ export default function VoterLayout({
           </p>
         </div>
       </footer>
+
+      {/* Floating support chat for voters */}
+      <SupportChatWidget />
     </div>
   );
 }

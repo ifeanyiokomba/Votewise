@@ -39,10 +39,22 @@ import { toast } from "sonner";
 import { cn, formatRelative, initials } from "@/lib/utils";
 import {
   UserCog,
+  UserPlus,
   Loader2,
   ShieldCheck,
   ShieldOff,
+  X,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import type { UserDTO } from "@/components/dashboard/types";
 
 interface AdminUserDTO extends UserDTO {
@@ -66,6 +78,11 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [users, setUsers] = useState<AdminUserDTO[]>([]);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteName, setInviteName] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState("ELECTION_OFFICER");
+  const [inviting, setInviting] = useState(false);
   const [me, setMe] = useState<UserDTO | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
 
@@ -138,6 +155,12 @@ export default function UsersPage() {
         eyebrow="Users"
         title="Organization members"
         description="Manage who has access, their role, and active state. You cannot deactivate or demote yourself."
+        actions={
+          <Button onClick={() => setInviteOpen(true)} className="gap-2">
+            <UserPlus className="h-4 w-4" />
+            Add member
+          </Button>
+        }
       />
 
       {loading ? (
@@ -296,6 +319,104 @@ export default function UsersPage() {
           </ScrollArea>
         </Card>
       )}
+
+      {/* Invite member dialog */}
+      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-primary" />
+              Add organization member
+            </DialogTitle>
+            <DialogDescription>
+              Create a new user account linked to your organization. They&apos;ll receive a temporary password.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="invite-name">Full name</Label>
+              <Input
+                id="invite-name"
+                value={inviteName}
+                onChange={(e) => setInviteName(e.target.value)}
+                placeholder="John Doe"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="invite-email">Email address</Label>
+              <Input
+                id="invite-email"
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder="john@organization.org"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Role</Label>
+              <Select value={inviteRole} onValueChange={setInviteRole}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ROLE_OPTIONS.map((r) => (
+                    <SelectItem key={r.value} value={r.value}>
+                      {r.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInviteOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!inviteName.trim() || !inviteEmail.trim()) return;
+                setInviting(true);
+                const res = await apiFetch("/api/admin/users/invite", {
+                  method: "POST",
+                  body: JSON.stringify({
+                    name: inviteName.trim(),
+                    email: inviteEmail.trim(),
+                    role: inviteRole,
+                  }),
+                });
+                setInviting(false);
+                if (res.success) {
+                  toast.success("Member added", {
+                    description: `${inviteName} has been added to your organization.`,
+                  });
+                  setInviteName("");
+                  setInviteEmail("");
+                  setInviteRole("ELECTION_OFFICER");
+                  setInviteOpen(false);
+                  load();
+                } else {
+                  toast.error("Could not add member", {
+                    description: res.error?.message,
+                  });
+                }
+              }}
+              disabled={inviting || !inviteName.trim() || !inviteEmail.trim()}
+            >
+              {inviting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Adding…
+                </>
+              ) : (
+                <>
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Add member
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

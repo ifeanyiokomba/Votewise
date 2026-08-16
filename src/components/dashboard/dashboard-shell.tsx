@@ -7,6 +7,7 @@ import { AppSidebar } from "./app-sidebar";
 import { AppTopbar } from "./app-topbar";
 import { CreateElectionDialog } from "./create-election-dialog";
 import { CommandPalette } from "./command-palette";
+import { SupportChatWidget } from "@/components/shared/support-chat-widget";
 import {
   Sheet,
   SheetContent,
@@ -162,6 +163,9 @@ export function DashboardShell({
         isPlatformAdmin={user?.role === "PLATFORM_ADMIN"}
         onCreateElection={() => setCreateOpen(true)}
       />
+
+      {/* Floating support chat widget */}
+      <SupportChatWidget />
     </div>
   );
 }
