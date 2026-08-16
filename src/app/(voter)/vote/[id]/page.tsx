@@ -119,6 +119,9 @@ function LandingInner() {
   const [lookup, setLookup] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [showPhotoPrompt, setShowPhotoPrompt] = React.useState(false);
+  const [photoVerified, setPhotoVerified] = React.useState(false);
+  const [pendingVoterId, setPendingVoterId] = React.useState<string | null>(null);
 
   const reduce = useReducedMotion();
 
@@ -189,9 +192,10 @@ function LandingInner() {
 
       const data = res.data;
 
+      // Handle already-voted
       if ("alreadyVoted" in data && data.alreadyVoted) {
         toast.info("Already voted", {
-          description: "We found a ballot already cast from your account.",
+          description: "A ballot was already cast from your account.",
         });
         router.push(
           `/vote/${electionId}/receipt?alreadyVoted=1&voterId=${encodeURIComponent(
@@ -202,13 +206,46 @@ function LandingInner() {
       }
 
       if (data.sent === false) {
-        setError(
-          "Too many attempts. Please wait a minute and try again."
-        );
-        toast.error("Too many attempts", {
-          description: "Wait a moment before requesting another code.",
-        });
+        setError("Too many attempts. Please wait a minute and try again.");
         return;
+      }
+
+      // ─── Device fingerprint check ───
+      // Check if this device has been used by another voter in this election
+      if (!photoVerified && data.voterId) {
+        const fingerprint = {
+          userAgent: navigator.userAgent,
+          screen: `${screen.width}x${screen.height}x${screen.colorDepth}`,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          language: navigator.language,
+          platform: navigator.platform,
+        };
+
+        const deviceRes = await apiFetch<{ requirePhoto: boolean }>("/api/voter/device-check", {
+          method: "POST",
+          body: JSON.stringify({ electionId, voterId: data.voterId, fingerprint }),
+        });
+
+        if (deviceRes.success && deviceRes.data?.requirePhoto) {
+          // Device seen before — prompt for live photo before continuing
+          setPendingVoterId(data.voterId);
+          setShowPhotoPrompt(true);
+          setSubmitting(false);
+
+          // Store voter info for after photo verification
+          try {
+            sessionStorage.setItem(
+              `votewise:voter:${electionId}`,
+              JSON.stringify({ voterId: data.voterId, channel: data.channel, ts: Date.now() })
+            );
+          } catch { /* ignore */ }
+
+          // Proceed to verify page (OTP was already sent)
+          const params = new URLSearchParams({ voterId: data.voterId });
+          if (data.channel) params.set("channel", data.channel);
+          router.push(`/vote/${electionId}/verify?${params.toString()}`);
+          return;
+        }
       }
 
       // Persist for cross-page recovery

@@ -1,5 +1,5 @@
 import { ok, handleError, fail } from "@/lib/api-response";
-import { requireOrgAdmin } from "@/lib/session";
+import { requireOrgMember } from "@/lib/session";
 import { db } from "@/lib/db";
 import { OtpService } from "@/services/otp.service";
 import { z } from "zod";
@@ -16,7 +16,7 @@ const resendSchema = z.object({
  */
 export async function POST(request: Request) {
   try {
-    const admin = await requireOrgAdmin();
+    const admin = await requireOrgMember();
     const body = await request.json();
     const parsed = resendSchema.parse(body);
 
