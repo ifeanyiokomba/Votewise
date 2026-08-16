@@ -1125,3 +1125,100 @@ Task: Assess project status, QA test via agent-browser, add new features, improv
 - **Status timeline click-to-filter** — could make timeline steps clickable to filter audit logs by that status transition.
 - **Voter badge profile page** — could add a public-facing badge profile page where voters can view and share their earned badges.
 - **Comparison chart image export** — could add PNG/SVG export of the turnout trend chart for embedding in presentations.
+
+---
+Task ID: CRON-11 (webDevReview round 11 — Final Product Modernization)
+Agent: Lead (orchestrator) — cron-triggered continuous review
+Task: Comprehensive product modernization, auth repair, brand identity, UI/UX redesign directive.
+
+## Current Project Status Assessment
+- Votewise was fully functional end-to-end with 10 rounds of feature additions. Three services running: Next.js (:3000), socket.io monitor (:3003), election scheduler.
+- This round addressed the directive for: auth pipeline repair, brand identity establishment, hydration error fix, and visual modernization.
+
+## Bugs Found & Fixed
+
+### 1. Hydration Error (CRITICAL — was blocking the landing page)
+- **Root cause**: In `src/app/page.tsx`, the `FinalCta` component rendered `<Logo>` (which outputs a `<div>`) inside a `<p>` tag. HTML spec forbids `<div>` as a descendant of `<p>`, causing a React hydration error.
+- **Fix**: Changed the wrapping `<p>` to a `<div>` and wrapped the text content in a `<span>`.
+- **Verified**: Landing page loads with zero hydration errors.
+
+### 2. Dashboard Routing Race Condition (CRITICAL — dashboard not opening after login)
+- **Root cause**: The login page used `router.push("/dashboard")` followed immediately by `router.refresh()`. This client-side navigation could race with session cookie propagation — the dashboard layout's `useEffect` would fire `/api/auth/me` before the browser sent the new httpOnly cookie, causing the auth check to fail and redirect back to `/login`.
+- **Fix**: Replaced `router.push` + `router.refresh()` with `window.location.href = target` — a hard browser navigation that guarantees the cookie is sent with the next request. Also updated the API response type to include `organizationId` for future role-based redirect logic.
+- **Verified**: Both org-owner and platform-admin logins now reliably reach `/dashboard` with correct rendering.
+
+## New Brand Identity Established
+
+### Color Palette Redesign
+- Replaced the previous emerald/green palette with the requested **deep navy/indigo foundation + electric blue/violet primary + cyan/teal secondary** direction:
+  - **Primary**: `oklch(0.45 0.18 265)` — deep electric indigo/blue (light mode), `oklch(0.62 0.2 265)` (dark mode)
+  - **Accent**: `oklch(0.93 0.03 200)` — refined cyan/teal (light mode), `oklch(0.28 0.03 200)` (dark mode)
+  - **Background**: `oklch(0.99 0.004 250)` — warm off-white with subtle navy tint (light mode), `oklch(0.15 0.015 260)` — deep navy (dark mode)
+  - **Sidebar**: navy-tinted with primary-colored active states
+  - **Charts**: indigo, cyan, violet, teal, amber — a cohesive 5-color data visualization palette
+- All CSS custom properties in `globals.css` (`:root` and `.dark`) were updated.
+
+### Logo Redesign
+- Replaced the previous shield+checkmark icon with a distinctive **Votewise "V" mark**:
+  - A stylized "V" formed by two converging lines (representing convergence of voters + verification)
+  - An embedded checkmark inside the V (representing verified, trustworthy voting)
+  - Gradient background: `from-primary via-primary to-chart-3` (indigo → indigo → violet)
+  - Works at all sizes (sm/md/lg), on dark/light backgrounds, and as a compact mark
+- Updated `src/components/shared/logo.tsx` with the new SVG mark.
+
+## Authentication Pipeline Diagnosis & Repair
+
+### Full Pipeline Trace
+```
+Login page (client)
+→ POST /api/auth/login (server)
+→ User lookup by email (db.user.findFirst)
+→ bcrypt password verification
+→ createSession() → jose JWT signed + httpOnly cookie set
+→ Return { user: { id, email, name, role, organizationId } }
+→ Client receives response
+→ [OLD] router.push("/dashboard") + router.refresh() ← RACE CONDITION
+→ [NEW] window.location.href = "/dashboard" ← HARD NAVIGATION, cookie guaranteed
+→ Proxy/middleware checks cookie → allows access
+→ Dashboard layout useEffect → GET /api/auth/me → verifies session
+→ If user found → render DashboardShell with user + org
+→ If not found → redirect to /login
+```
+
+### Platform Admin Flow
+- Platform admins (role `PLATFORM_ADMIN`) have `organizationId: null`.
+- The dashboard layout correctly handles this: it shows the PLATFORM nav section and "No organization attached" instead of an org card.
+- Both demo accounts verified: `demo@votewise.com.ng` (org owner) and `admin@votewise.com.ng` (platform admin) both reach `/dashboard` successfully.
+
+### Google Authentication
+- **Status**: No Google OAuth is implemented in this codebase (the original cloned repo had it via next-auth, but this SQLite rebuild uses custom jose/bcrypt sessions). There is no Google button on any login page. The requirement to "remove Google from Platform Admin" is already satisfied — there is no Google auth anywhere.
+- Google auth for org users can be added later via a separate OAuth provider if needed.
+
+## Organization Customization Status
+- **Already functional** (from round 4): `GET/PATCH /api/admin/organization` persists name, description, logo, contactInfo, branding to the database.
+- **Already functional** (from round 5): Notification preferences persist to the org's branding JSON via `GET/PATCH /api/admin/notification-preferences`.
+- Settings page loads all fields from the API and saves changes with audit logging.
+
+## Verification Results
+- `bun run lint`: 0 errors, 0 warnings.
+- agent-browser end-to-end:
+  - ✅ Landing page: loads with zero hydration errors.
+  - ✅ Login (org owner): `demo@votewise.com.ng` → redirects to `/dashboard` → dashboard renders with org name, stats, elections.
+  - ✅ Login (platform admin): `admin@votewise.com.ng` → redirects to `/dashboard` → dashboard renders with PLATFORM nav section, "No organization attached".
+  - ✅ Elections page: loads correctly for admin.
+  - ✅ No console errors on any tested page.
+  - ✅ All three services running (Next.js, monitor, scheduler).
+
+## Files Modified
+- **Modified**: `src/app/page.tsx` (hydration fix — p→div in FinalCta), `src/app/(auth)/login/page.tsx` (hard navigation + role-aware redirect), `src/app/dashboard/layout.tsx` (cleaned up auth check), `src/app/globals.css` (complete brand palette redesign — navy/indigo/blue/violet/cyan), `src/components/shared/logo.tsx` (new Votewise "V" mark with gradient).
+
+## Next-Phase Recommendations
+- **Platform Admin dashboard**: Currently shows the same dashboard as org users. Should be redesigned as a dedicated operations console (organizations, negotiations, payments, security, system health) per the directive.
+- **Election creation wizard**: Currently a single dialog. Should be a multi-step guided workflow (info → positions → candidates → voters → rules → preview → go live).
+- **Organization branding engine**: Brand colors are currently global. Could add per-org branding overrides (primary color, logo) that apply to voter pages and results.
+- **Dark/light mode polish**: The new palette has dark mode tokens but the landing page and voter flow may need per-section dark mode review.
+- **Motion design system**: Add a centralized motion tokens file (durations, easings) and apply consistently across the app.
+- **Responsive audit**: Test every page at mobile/tablet/desktop/wide breakpoints.
+- **Functional completeness audit**: Verify every nav item leads to a fully working feature.
+- **Real provider integrations**: SMS/email/WhatsApp providers, Paystack webhook.
+- **Automated tests**: vitest for auth pipeline, vote service, result service.

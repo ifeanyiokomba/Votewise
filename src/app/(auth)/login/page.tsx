@@ -106,7 +106,7 @@ function LoginForm() {
     setError(null);
     setSubmitting(true);
     try {
-      const res = await apiFetch<{ user: { id: string; role: string } }>(
+      const res = await apiFetch<{ user: { id: string; role: string; organizationId: string | null } }>(
         "/api/auth/login",
         {
           method: "POST",
@@ -124,8 +124,11 @@ function LoginForm() {
         description: "You're now signed in to Votewise.",
       });
       const next = searchParams.get("next");
-      router.push(next && next.startsWith("/") ? next : "/dashboard");
-      router.refresh();
+      // Use hard navigation to ensure the session cookie is properly
+      // propagated to the server on the next request. Client-side router
+      // navigation (router.push) can race with cookie propagation.
+      const target = next && next.startsWith("/") ? next : "/dashboard";
+      window.location.href = target;
     } finally {
       setSubmitting(false);
     }

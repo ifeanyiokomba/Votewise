@@ -1069,10 +1069,10 @@ function FinalCta() {
                 <Link href="/pricing">View pricing</Link>
               </Button>
             </div>
-            <p className="mt-6 flex items-center justify-center gap-1.5 text-xs text-primary-foreground/70">
+            <div className="mt-6 flex items-center justify-center gap-1.5 text-xs text-primary-foreground/70">
               <Logo size="sm" className="[&_span]:text-primary-foreground" />
-              {APP_NAME} — trusted by institutions across Africa
-            </p>
+              <span>{APP_NAME} — trusted by institutions across Africa</span>
+            </div>
           </div>
         </div>
       </div>

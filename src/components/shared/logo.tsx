@@ -20,10 +20,12 @@ export function Logo({
     <div className={cn("flex items-center gap-2.5", className)}>
       <div
         className={cn(
-          "relative grid place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm",
-          dims.box
+          "relative grid place-items-center rounded-xl shadow-sm",
+          dims.box,
+          "bg-gradient-to-br from-primary via-primary to-chart-3 text-primary-foreground"
         )}
       >
+        {/* Distinctive Votewise mark: abstract ballot/checkmark hybrid */}
         <svg
           width={dims.icon}
           height={dims.icon}
@@ -32,20 +34,22 @@ export function Logo({
           xmlns="http://www.w3.org/2000/svg"
           aria-hidden="true"
         >
+          {/* Stylized "V" mark formed by two converging lines + check */}
           <path
-            d="M12 2.5 20 6v5.5c0 4.6-3.2 8.8-8 10-4.8-1.2-8-5.4-8-10V6l8-3.5Z"
+            d="M4 5.5 L12 20 L20 5.5"
             stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinejoin="round"
-            fill="currentColor"
-            fillOpacity="0.12"
-          />
-          <path
-            d="m9 12 2 2 4-4.5"
-            stroke="currentColor"
-            strokeWidth="1.8"
+            strokeWidth="2.2"
             strokeLinecap="round"
             strokeLinejoin="round"
+          />
+          {/* Checkmark inside the V — represents verified voting */}
+          <path
+            d="M8.5 11 L11 13.5 L15.5 8.5"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity="0.7"
           />
         </svg>
       </div>

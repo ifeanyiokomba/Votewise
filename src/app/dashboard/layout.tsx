@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { apiFetch } from "@/lib/api-fetch";
 import type { MeResponse, UserDTO, OrganizationDTO } from "@/components/dashboard/types";
@@ -13,6 +13,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<UserDTO | null>(null);
   const [organization, setOrganization] = useState<OrganizationDTO | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
@@ -27,7 +28,8 @@ export default function DashboardLayout({
         router.replace("/login?next=/dashboard");
         return;
       }
-      setUser(meRes.data.user);
+      const u = meRes.data.user;
+      setUser(u);
       setOrganization(meRes.data.organization);
       setAuthChecked(true);
     })();
@@ -36,6 +38,7 @@ export default function DashboardLayout({
     };
   }, [router]);
 
+  // Show skeleton while checking auth
   if (!authChecked) {
     return <DashboardSkeleton />;
   }
