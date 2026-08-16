@@ -26,6 +26,9 @@ import {
   Phone,
   Globe,
   Sparkles,
+  Trophy,
+  Crown,
+  BarChart3,
 } from "lucide-react";
 
 interface OrgCandidate {
@@ -43,6 +46,16 @@ interface OrgPosition {
   candidates: OrgCandidate[];
 }
 
+interface OrgCandidateWithVotes extends OrgCandidate {
+  voteCount?: number;
+  percentage?: number;
+}
+
+interface OrgPositionWithVotes extends OrgPosition {
+  candidates: OrgCandidateWithVotes[];
+  totalVotes?: number;
+}
+
 interface LiveElection {
   id: string;
   name: string;
@@ -50,8 +63,23 @@ interface LiveElection {
   startTime: string | null;
   endTime: string | null;
   type: string;
-  _count: { voters: number; votes: number };
-  positions: OrgPosition[];
+  resultVisibility?: string;
+  showLiveResults?: boolean;
+  stats?: { voters: number; votes: number; turnout: number };
+  _count?: { voters: number; votes: number };
+  positions: OrgPositionWithVotes[];
+}
+
+interface PublishedElection {
+  id: string;
+  name: string;
+  description: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  type: string;
+  stats?: { voters: number; votes: number; turnout: number };
+  _count?: { voters: number; votes: number };
+  positions: OrgPositionWithVotes[];
 }
 
 interface UpcomingElection {
@@ -75,6 +103,7 @@ interface OrgData {
     branding: string | null;
   };
   liveElections: LiveElection[];
+  publishedElections: PublishedElection[];
   upcomingElections: UpcomingElection[];
 }
 
@@ -106,8 +135,9 @@ export default function OrgHomePage() {
   if (loading) return <OrgHomeSkeleton />;
   if (error || !data) return <NotFoundError />;
 
-  const { organization: org, liveElections, upcomingElections } = data;
+  const { organization: org, liveElections, publishedElections, upcomingElections } = data;
   const hasLive = liveElections.length > 0;
+  const hasPublished = publishedElections.length > 0;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -219,49 +249,73 @@ export default function OrgHomePage() {
                       </div>
                     </div>
 
-                    {/* Candidate headshots */}
+                    {/* Candidate headshots + live results (if enabled) */}
                     <CardContent className="p-5">
-                      <div className="space-y-6">
-                        {election.positions.map((pos, pi) => (
-                          <motion.div
-                            key={pos.id}
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: (ei * 0.1) + (pi * 0.05) }}
-                          >
-                            <h4 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                              {pos.title}
-                            </h4>
-                            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-                              {pos.candidates.map((cand, ci) => (
-                                <motion.div
-                                  key={cand.id}
-                                  initial={{ opacity: 0, scale: 0.95 }}
-                                  animate={{ opacity: 1, scale: 1 }}
-                                  transition={{ delay: (ei * 0.1) + (pi * 0.05) + (ci * 0.03) }}
-                                  className="group flex flex-col items-center gap-2 rounded-xl border p-4 text-center transition-all hover:border-primary/30 hover:shadow-md hover-lift"
-                                >
-                                  <Avatar className="h-20 w-20 border-2 border-border shadow-sm transition-transform group-hover:scale-105">
-                                    {cand.photo ? (
-                                      <AvatarImage src={cand.photo} alt={cand.name} />
-                                    ) : (
-                                      <AvatarFallback className="bg-primary/10 text-lg font-bold text-primary">
-                                        {initials(cand.name)}
-                                      </AvatarFallback>
-                                    )}
-                                  </Avatar>
-                                  <div>
-                                    <p className="text-sm font-semibold leading-tight">{cand.name}</p>
-                                    {cand.bio && (
-                                      <p className="mt-0.5 line-clamp-2 text-[10px] text-muted-foreground">{cand.bio}</p>
-                                    )}
+                      {election.showLiveResults ? (
+                        /* ─── Live results with percentages ─── */
+                        <div className="space-y-6">
+                          <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-800 dark:bg-emerald-950/20">
+                            <BarChart3 className="h-4 w-4 text-emerald-600" />
+                            <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                              Live results — updates in real-time as votes are cast
+                            </p>
+                          </div>
+                          {election.positions.map((pos, pi) => (
+                            <motion.div key={pos.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: (ei * 0.1) + (pi * 0.05) }}>
+                              <div className="mb-3 flex items-center justify-between">
+                                <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{pos.title}</h4>
+                                <span className="text-[10px] text-muted-foreground">{pos.totalVotes ?? 0} votes</span>
+                              </div>
+                              <div className="space-y-3">
+                                {pos.candidates.map((cand, ci) => (
+                                  <div key={cand.id} className="flex items-center gap-3">
+                                    <Avatar className="h-10 w-10 shrink-0">
+                                      {cand.photo ? <AvatarImage src={cand.photo} alt={cand.name} /> : <AvatarFallback className="bg-primary/10 text-xs text-primary">{initials(cand.name)}</AvatarFallback>}
+                                    </Avatar>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center justify-between gap-2">
+                                        <span className="truncate text-sm font-medium">{cand.name}</span>
+                                        <span className="shrink-0 text-sm font-bold tabular-nums text-primary">{cand.percentage?.toFixed(1) ?? 0}%</span>
+                                      </div>
+                                      <div className="mt-1 h-2 overflow-hidden rounded-full bg-muted">
+                                        <motion.div
+                                          className={`h-full rounded-full ${ci === 0 && (cand.voteCount ?? 0) > 0 ? "bg-primary" : "bg-primary/40"}`}
+                                          initial={{ width: 0 }}
+                                          animate={{ width: `${cand.percentage ?? 0}%` }}
+                                          transition={{ duration: 0.8, ease: "easeOut" }}
+                                        />
+                                      </div>
+                                      <p className="mt-0.5 text-[10px] text-muted-foreground">{cand.voteCount ?? 0} votes</p>
+                                    </div>
                                   </div>
-                                </motion.div>
-                              ))}
-                            </div>
-                          </motion.div>
-                        ))}
-                      </div>
+                                ))}
+                              </div>
+                            </motion.div>
+                          ))}
+                        </div>
+                      ) : (
+                        /* ─── Candidates only (no live results) ─── */
+                        <div className="space-y-6">
+                          {election.positions.map((pos, pi) => (
+                            <motion.div key={pos.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: (ei * 0.1) + (pi * 0.05) }}>
+                              <h4 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">{pos.title}</h4>
+                              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                                {pos.candidates.map((cand, ci) => (
+                                  <motion.div key={cand.id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: (ei * 0.1) + (pi * 0.05) + (ci * 0.03) }} className="group flex flex-col items-center gap-2 rounded-xl border p-4 text-center transition-all hover:border-primary/30 hover:shadow-md hover-lift">
+                                    <Avatar className="h-20 w-20 border-2 border-border shadow-sm transition-transform group-hover:scale-105">
+                                      {cand.photo ? <AvatarImage src={cand.photo} alt={cand.name} /> : <AvatarFallback className="bg-primary/10 text-lg font-bold text-primary">{initials(cand.name)}</AvatarFallback>}
+                                    </Avatar>
+                                    <div>
+                                      <p className="text-sm font-semibold leading-tight">{cand.name}</p>
+                                      {cand.bio && <p className="mt-0.5 line-clamp-2 text-[10px] text-muted-foreground">{cand.bio}</p>}
+                                    </div>
+                                  </motion.div>
+                                ))}
+                              </div>
+                            </motion.div>
+                          ))}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -309,6 +363,79 @@ export default function OrgHomePage() {
                           <Badge variant="outline" className="border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-300">
                             {timeUntil(el.startTime)}
                           </Badge>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* ─── PUBLISHED ELECTION RESULTS ─── */}
+          {hasPublished && (
+            <section>
+              <div className="mb-4 flex items-center gap-2">
+                <Trophy className="h-5 w-5 text-primary" />
+                <h2 className="text-xl font-semibold tracking-tight">Election Results</h2>
+              </div>
+              <div className="space-y-6">
+                {publishedElections.map((election, ei) => (
+                  <motion.div key={election.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: ei * 0.1 }}>
+                    <Card className="overflow-hidden">
+                      <div className="border-b bg-primary/5 p-4">
+                        <div className="flex items-center justify-between gap-2">
+                          <div>
+                            <h3 className="text-base font-bold tracking-tight">{election.name}</h3>
+                            {election.description && <p className="mt-0.5 text-xs text-muted-foreground">{election.description}</p>}
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">
+                              <CheckCircle2 className="h-3 w-3" /> Concluded
+                            </Badge>
+                            <span className="text-[10px] text-muted-foreground">
+                              {election.stats?.turnout?.toFixed(1) ?? 0}% turnout · {election.stats?.votes ?? 0} votes
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <CardContent className="p-5">
+                        <div className="space-y-6">
+                          {election.positions.map((pos) => (
+                            <div key={pos.id}>
+                              <div className="mb-3 flex items-center justify-between">
+                                <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{pos.title}</h4>
+                                <span className="text-[10px] text-muted-foreground">{pos.totalVotes ?? 0} total votes</span>
+                              </div>
+                              <div className="space-y-3">
+                                {pos.candidates.map((cand, ci) => (
+                                  <div key={cand.id} className="flex items-center gap-3">
+                                    <Avatar className="h-12 w-12 shrink-0 border-2">
+                                      {cand.photo ? <AvatarImage src={cand.photo} alt={cand.name} /> : <AvatarFallback className="bg-primary/10 text-sm font-bold text-primary">{initials(cand.name)}</AvatarFallback>}
+                                    </Avatar>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-1.5">
+                                          {ci === 0 && (cand.voteCount ?? 0) > 0 && <Crown className="h-3.5 w-3.5 text-amber-500" />}
+                                          <span className="truncate text-sm font-semibold">{cand.name}</span>
+                                        </div>
+                                        <span className="shrink-0 text-base font-bold tabular-nums text-primary">{cand.percentage?.toFixed(1) ?? 0}%</span>
+                                      </div>
+                                      <div className="mt-1 h-3 overflow-hidden rounded-full bg-muted">
+                                        <motion.div
+                                          className={`h-full rounded-full ${ci === 0 && (cand.voteCount ?? 0) > 0 ? "bg-gradient-to-r from-primary to-chart-2" : "bg-primary/40"}`}
+                                          initial={{ width: 0 }}
+                                          animate={{ width: `${cand.percentage ?? 0}%` }}
+                                          transition={{ duration: 1, ease: "easeOut", delay: 0.2 }}
+                                        />
+                                      </div>
+                                      <p className="mt-0.5 text-[10px] text-muted-foreground">{cand.voteCount ?? 0} votes</p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </CardContent>
                     </Card>
