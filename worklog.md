@@ -1251,3 +1251,75 @@ Task: Fix Radix UI hydration mismatch on landing page (ThemeToggle + SheetTrigge
 
 ## Files Modified
 - **Modified**: `src/app/layout.tsx` (added inline theme-init script in `<head>` to prevent hydration mismatch).
+
+---
+Task ID: CRON-13 (webDevReview round 13 — Full Product Modernization & Dashboard Root Cause Fix)
+Agent: Lead (orchestrator) — cron-triggered continuous review
+Task: Comprehensive product modernization, dashboard root cause repair, platform admin console, organization customization audit.
+
+## Current Project Status Assessment
+- Votewise is fully functional. Three services running: Next.js (:3000), socket.io monitor (:3003), election scheduler.
+- `bun run lint` passes with 0 errors, 0 warnings.
+- No runtime errors in dev.log.
+- This round addressed the directive's core priorities: dashboard routing root cause, platform admin console, Google auth verification, organization customization audit.
+
+## Bugs Found & Fixed
+
+### 1. Platform Admin Dashboard Root Cause (CRITICAL — was causing "dashboard not opening")
+- **Root cause**: The dashboard overview page (`/dashboard`) called `/api/admin/stats` and `/api/elections` on mount. Both APIs use `requireOrgAdmin()` which requires `user.organizationId` to exist. Platform admins have `organizationId: null`, so these APIs returned 403 Forbidden. The dashboard then showed an error state ("Could not load dashboard stats") instead of rendering — this was the "dashboard not opening correctly" issue.
+- **Fix**: Created a dedicated `/api/admin/platform-stats` API (using `requireRole("PLATFORM_ADMIN")` instead of `requireOrgAdmin()`) that returns platform-wide metrics (organizations, elections, voters, votes, pending negotiations, payments, tickets, security events, recent orgs, recent elections, recent payments). Created a `<PlatformAdminDashboard>` component that renders a proper operations console. Updated the dashboard overview page to first fetch `/api/auth/me`, check the user's role, and conditionally render either the platform admin console (for PLATFORM_ADMIN) or the org dashboard (for org users).
+- **Verified**: Platform admin login → `/dashboard` now renders the operations console with platform-wide stats (2 organizations, 20 voters, 9 votes, 1 open ticket, 3 security alerts, recent orgs, recent elections, recent payments). Zero errors.
+
+### 2. Misleading Branding Text in Settings
+- The branding field in the Settings page had placeholder text saying "Branding overrides are not persisted in this build" even though the PATCH API does persist branding. Fixed the text to accurately reflect that branding IS persisted. Also updated the placeholder color from old emerald to new indigo.
+
+## Google Authentication Status
+- **No Google auth exists anywhere in the codebase.** This SQLite rebuild uses custom jose/bcrypt sessions — no next-auth, no GoogleProvider, no OAuth buttons. The requirement to "remove Google from Platform Admin" is already satisfied. Google auth for org users can be added later via a separate OAuth provider if needed.
+
+## Organization Customization Audit
+- **API**: `GET/PATCH /api/admin/organization` — persists name, description, logo, contactInfo, branding (JSON). Uses zod validation, audit logging, and `requireOrgAdmin()`.
+- **Notification preferences**: `GET/PATCH /api/admin/notification-preferences` — persists 5 event types × 3 channels to the org's branding JSON.
+- **Settings page**: Loads all fields from the API on mount, saves via PATCH, shows success/error toasts.
+- **Verified**: Changed org name via PATCH API → reloaded page → name persisted correctly → reverted.
+
+## Authentication Pipeline (Full Trace)
+```
+Login page (client)
+→ POST /api/auth/login (server)
+→ User lookup by email (db.user.findFirst)
+→ bcrypt password verification
+→ createSession() → jose JWT signed + httpOnly cookie set
+→ Return { user: { id, email, name, role, organizationId } }
+→ window.location.href = "/dashboard" (hard navigation, cookie guaranteed)
+→ Proxy/middleware checks cookie → allows access
+→ Dashboard layout useEffect → GET /api/auth/me → verifies session
+→ Dashboard page checks user.role
+→ If PLATFORM_ADMIN → fetch /api/admin/platform-stats → render PlatformAdminDashboard
+→ If org user → fetch /api/admin/stats + /api/elections → render org dashboard
+```
+
+## Verification Results
+- `bun run lint`: 0 errors, 0 warnings.
+- agent-browser end-to-end:
+  - ✅ Org admin login (demo@votewise.com.ng) → `/dashboard` renders with org data (Welcome back, Adaeze, elections, stats, leaderboard, engagement scoring, voter badges).
+  - ✅ Platform admin login (admin@votewise.com.ng) → `/dashboard` renders PlatformAdminDashboard (Platform Operations, 2 orgs, 20 voters, 9 votes, 1 ticket, 3 security alerts, recent orgs, recent elections, recent payments).
+  - ✅ Refresh test: dashboard persists after reload.
+  - ✅ Direct URL test: `/dashboard/elections` loads correctly.
+  - ✅ Back button test: returns to `/dashboard` correctly.
+  - ✅ Settings persistence: PATCH API saves → reload confirms persistence.
+  - ✅ No console errors on any tested page.
+  - ✅ No dev.log errors.
+
+## Files Modified/Created
+- **Created**: `src/app/api/admin/platform-stats/route.ts`, `src/components/dashboard/platform-admin-dashboard.tsx`.
+- **Modified**: `src/app/dashboard/page.tsx` (role-based conditional rendering — platform admin gets dedicated console), `src/app/dashboard/settings/page.tsx` (fixed misleading branding text).
+
+## Next-Phase Recommendations
+- **Platform admin navigation**: Currently shows the org sidebar. Should have a dedicated platform admin sidebar (Overview, Organizations, Elections, Negotiations, Payments, Users, Support, Security, Audit Logs).
+- **Election creation wizard**: Multi-step guided workflow (info → positions → candidates → voters → rules → preview → go live).
+- **Organization branding engine**: Per-org brand color overrides applied to voter pages and results.
+- **Motion design system**: Centralized motion tokens (durations, easings) applied consistently.
+- **Responsive audit**: Test every page at mobile/tablet/desktop/wide breakpoints.
+- **Functional completeness audit**: Verify every nav item leads to a fully working feature.
+- **Real provider integrations**: SMS/email/WhatsApp, Paystack webhook.
+- **Automated tests**: vitest for auth pipeline, platform stats, vote service.

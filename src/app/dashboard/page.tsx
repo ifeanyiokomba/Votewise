@@ -27,6 +27,7 @@ import { LiveActivityFeed } from "@/components/dashboard/live-activity-feed";
 import { EngagementLeaderboard } from "@/components/dashboard/engagement-leaderboard";
 import { EngagementScoringCard } from "@/components/dashboard/engagement-scoring-card";
 import { VoterBadgesCard } from "@/components/dashboard/voter-badges-card";
+import { PlatformAdminDashboard } from "@/components/dashboard/platform-admin-dashboard";
 import { apiFetch } from "@/lib/api-fetch";
 import { cn, formatNumber, formatRelative, formatPercent } from "@/lib/utils";
 import {
@@ -93,16 +94,34 @@ export default function OverviewPage() {
   const [stats, setStats] = useState<AdminStatsResponse | null>(null);
   const [elections, setElections] = useState<ElectionDTO[]>([]);
   const [me, setMe] = useState<MeResponse | null>(null);
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const [statsRes, electionsRes, meRes] = await Promise.all([
+
+    // First fetch the user's identity to determine role
+    const meRes = await apiFetch<MeResponse>("/api/auth/me");
+    setLoading(false);
+
+    if (!meRes.success || !meRes.data?.user) {
+      setError("Could not load user session");
+      return;
+    }
+
+    setMe(meRes.data);
+    const isPA = meRes.data.user.role === "PLATFORM_ADMIN";
+    setIsPlatformAdmin(isPA);
+
+    // Platform admins don't need org-specific stats
+    if (isPA) return;
+
+    // Org users: fetch org-specific data
+    const [statsRes, electionsRes] = await Promise.all([
       apiFetch<AdminStatsResponse>("/api/admin/stats"),
       apiFetch<{ elections: ElectionDTO[] }>("/api/elections"),
-      apiFetch<MeResponse>("/api/auth/me"),
     ]);
-    setLoading(false);
+
     if (statsRes.success && statsRes.data) {
       setStats(statsRes.data);
     } else {
@@ -110,9 +129,6 @@ export default function OverviewPage() {
     }
     if (electionsRes.success && electionsRes.data) {
       setElections(electionsRes.data.elections);
-    }
-    if (meRes.success && meRes.data) {
-      setMe(meRes.data);
     }
   }, []);
 
@@ -130,6 +146,11 @@ export default function OverviewPage() {
   const firstName = me?.user?.name?.split(" ")[0] ?? "there";
   const orgName = me?.organization?.name ?? "your organization";
   const tier = me?.organization?.subscriptionTier ?? "FREE";
+
+  // Platform Admin gets a dedicated operations console
+  if (isPlatformAdmin && me?.user) {
+    return <PlatformAdminDashboard userName={me.user.name} />;
+  }
 
   const activeElections = elections.filter((e) =>
     ["LIVE", "SCHEDULED", "READY"].includes(e.status)

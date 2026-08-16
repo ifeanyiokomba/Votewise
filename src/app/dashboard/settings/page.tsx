@@ -346,13 +346,12 @@ export default function SettingsPage() {
                   id="branding"
                   value={form.branding}
                   onChange={(e) => update("branding", e.target.value)}
-                  placeholder='JSON theme overrides (e.g. {"primary":"#0f766e"})'
+                  placeholder='JSON theme overrides (e.g. {"primary":"#4f46e5"})'
                   rows={3}
                   className="font-mono text-xs"
                 />
                 <p className="text-[11px] text-muted-foreground">
-                  Branding overrides are not persisted in this build — connect an
-                  organization PATCH endpoint to enable.
+                  JSON branding overrides (e.g. {"{"}"primary":"#4f46e5"{"}"}). Persisted to your organization profile.
                 </p>
               </div>
 
