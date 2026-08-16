@@ -67,6 +67,7 @@ export default function RegisterPage() {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [organizationName, setOrganizationName] = React.useState("");
+  const [preferredSubdomain, setPreferredSubdomain] = React.useState("");
   const [institutionType, setInstitutionType] = React.useState("UNIVERSITY");
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -112,6 +113,7 @@ export default function RegisterPage() {
             email: email.trim(),
             password,
             organizationName: organizationName.trim(),
+            preferredSubdomain: preferredSubdomain.trim(),
             institutionType,
           }),
         }
@@ -224,6 +226,29 @@ export default function RegisterPage() {
                 required
               />
             </div>
+          </div>
+
+          {/* Preferred subdomain */}
+          <div className="space-y-2">
+            <Label htmlFor="subdomain">Preferred subdomain (optional)</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="subdomain"
+                placeholder="unilag"
+                className="flex-1"
+                value={preferredSubdomain}
+                onChange={(e) => setPreferredSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                disabled={submitting}
+              />
+              <div className="flex h-9 items-center rounded-md border bg-muted/30 px-3 text-xs text-muted-foreground">
+                .votewise.com.ng
+              </div>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              This will be your election portal URL: <span className="font-medium text-foreground">
+                {preferredSubdomain || "yourorg"}.votewise.com.ng
+              </span>
+            </p>
           </div>
 
           <div className="space-y-2">

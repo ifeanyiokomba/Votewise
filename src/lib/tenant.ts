@@ -121,6 +121,7 @@ const PUBLIC_ROUTES = [
   "/api/health",
   "/api/public",
   "/api/public/verify-certificate",
+  "/api/public/announcements",
   "/api/voter/verify",
   "/api/voter/vote",
   "/api/voter/vote/cast",

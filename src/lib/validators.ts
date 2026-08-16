@@ -10,6 +10,13 @@ export const registerSchema = z
       .regex(/[A-Z]/, "Include at least one uppercase letter")
       .regex(/[0-9]/, "Include at least one number"),
     organizationName: z.string().min(2, "Organization name is required").max(120),
+    preferredSubdomain: z
+      .string()
+      .min(2, "Subdomain must be at least 2 characters")
+      .max(30, "Subdomain must be at most 30 characters")
+      .regex(/^[a-z0-9-]+$/, "Use lowercase letters, numbers, and hyphens only")
+      .optional()
+      .or(z.literal("")),
     institutionType: z.enum([
       "UNIVERSITY",
       "STUDENT_UNION",

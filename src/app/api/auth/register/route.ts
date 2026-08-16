@@ -37,6 +37,7 @@ export async function POST(request: Request) {
       name: parsed.organizationName,
       ownerId: user.id,
       description: getInstitutionDescription(parsed.institutionType),
+      preferredSlug: parsed.preferredSubdomain || undefined,
     });
 
     // Store institution type in org's branding JSON for tailored experience

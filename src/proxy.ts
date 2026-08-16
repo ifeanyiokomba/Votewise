@@ -1,32 +1,62 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { isProtectedRoute } from "@/lib/tenant";
+import { isProtectedRoute, resolveTenantSlugFromHost } from "@/lib/tenant";
 
 const SESSION_COOKIE = "votewise_session";
+const MAIN_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? "votewise.com.ng";
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const host = request.headers.get("host") ?? "";
+  const protocol = request.headers.get("x-forwarded-proto") ?? "https";
+
+  // ─── Subdomain routing ───────────────────────────────────────────
+  // unilag.votewise.com.ng → rewrite to /org/unilag
+  // admin.votewise.com.ng → redirect to /login?admin=1
+  if (host !== MAIN_DOMAIN && host !== `www.${MAIN_DOMAIN}` && host !== "localhost:3000") {
+    // Admin subdomain
+    if (host === `admin.${MAIN_DOMAIN}`) {
+      // If already logged in, go to dashboard; otherwise login with admin flag
+      const token = request.cookies.get(SESSION_COOKIE)?.value;
+      if (token && !pathname.startsWith("/dashboard")) {
+        return NextResponse.redirect(new URL("/dashboard", request.url));
+      }
+      if (pathname === "/" || pathname === "") {
+        const loginUrl = new URL("/login", request.url);
+        loginUrl.searchParams.set("admin", "1");
+        return NextResponse.redirect(loginUrl);
+      }
+      return NextResponse.next();
+    }
+
+    // Check if it's a subdomain of the main domain
+    const slug = resolveTenantSlugFromHost(host);
+    if (slug && !pathname.startsWith("/api/") && !pathname.startsWith("/_next/")) {
+      // Rewrite unilag.votewise.com.ng/ → /org/unilag
+      // Rewrite unilag.votewise.com.ng/vote/xxx → /vote/xxx (keep voter flow working)
+      // Rewrite unilag.votewise.com.ng/results/xxx → /results/xxx
+      if (pathname === "/" || pathname === "") {
+        return NextResponse.rewrite(new URL(`/org/${slug}`, request.url));
+      }
+    }
+    // For custom domains (e.g. elections.unilag.edu.ng), let the page handle it
+    // The org page will detect the domain and look up the org
+  }
+
+  // ─── Standard routing ────────────────────────────────────────────
 
   if (!isProtectedRoute(pathname)) {
     return NextResponse.next();
   }
 
-  // Voter-facing ballot routes are public by identifier; allow them through.
-  if (pathname.startsWith("/vote/")) {
-    return NextResponse.next();
-  }
-  if (pathname.startsWith("/results/")) {
-    return NextResponse.next();
-  }
-  if (pathname.startsWith("/observe/")) {
-    return NextResponse.next();
-  }
-  if (pathname.startsWith("/report/")) {
-    return NextResponse.next();
-  }
-  if (pathname.startsWith("/certificate/")) {
-    return NextResponse.next();
-  }
-  if (pathname.startsWith("/org/")) {
+  // Voter-facing routes are public
+  if (
+    pathname.startsWith("/vote/") ||
+    pathname.startsWith("/results/") ||
+    pathname.startsWith("/observe/") ||
+    pathname.startsWith("/report/") ||
+    pathname.startsWith("/certificate/") ||
+    pathname.startsWith("/org/")
+  ) {
     return NextResponse.next();
   }
 

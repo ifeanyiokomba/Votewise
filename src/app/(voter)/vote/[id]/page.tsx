@@ -34,6 +34,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { VoterProgress } from "@/components/shared/voter-progress";
+import { AnnouncementBanner } from "@/components/shared/announcement-banner";
 import { Skeleton } from "@/components/ui/skeleton";
 
 type ElectionPublicInfo =
@@ -299,6 +300,9 @@ function LandingInner() {
   return (
     <div className="space-y-6">
       <VoterProgress current="verify" />
+
+      {/* Election announcements from admin */}
+      <AnnouncementBanner electionId={electionId} />
 
       {/* Hero */}
       <motion.div

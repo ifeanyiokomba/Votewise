@@ -7,8 +7,12 @@ export class OrganizationService {
     name: string;
     ownerId: string;
     description?: string;
+    preferredSlug?: string;
   }) {
-    let slug = slugify(params.name);
+    // Use preferred slug if provided, otherwise auto-generate from name
+    let slug = params.preferredSlug
+      ? params.preferredSlug.toLowerCase().trim().replace(/[^a-z0-9-]/g, "")
+      : slugify(params.name);
     if (!slug) slug = `org-${Date.now().toString(36)}`;
 
     let uniqueSlug = slug;
