@@ -10,6 +10,18 @@ export const registerSchema = z
       .regex(/[A-Z]/, "Include at least one uppercase letter")
       .regex(/[0-9]/, "Include at least one number"),
     organizationName: z.string().min(2, "Organization name is required").max(120),
+    institutionType: z.enum([
+      "UNIVERSITY",
+      "STUDENT_UNION",
+      "PROFESSIONAL_ASSOCIATION",
+      "CHURCH",
+      "COOPERATIVE",
+      "NGO",
+      "CORPORATE",
+      "CLUB_SOCIETY",
+      "GOVERNMENT",
+      "OTHER",
+    ]).default("UNIVERSITY"),
   });
 
 export const loginSchema = z.object({

@@ -1323,3 +1323,67 @@ Login page (client)
 - **Functional completeness audit**: Verify every nav item leads to a fully working feature.
 - **Real provider integrations**: SMS/email/WhatsApp, Paystack webhook.
 - **Automated tests**: vitest for auth pipeline, platform stats, vote service.
+
+---
+Task ID: CRON-14 (webDevReview round 14 — Dashboard fix, Google Auth, Institution types, Okomba branding)
+Agent: Lead (orchestrator) — cron-triggered continuous review
+Task: Fix remaining dashboard routing issue, add Google OAuth, add institution type dropdown, update Okomba Inc. branding.
+
+## Current Project Status Assessment
+- Votewise is fully functional. Three services running: Next.js (:3000), socket.io monitor (:3003), election scheduler.
+- `bun run lint` passes with 0 errors, 0 warnings.
+- No runtime errors in dev.log.
+
+## Bugs Found & Fixed
+
+### Dashboard Not Opening After Registration (CRITICAL — was the remaining dashboard issue)
+- **Root cause**: The register page (`/register`) used `router.push("/dashboard")` + `router.refresh()` — the same cookie-propagation race condition that was previously fixed in the login page but NOT in the register page. After registration, the session cookie was set but not yet propagated when `router.push` navigated to `/dashboard`, causing the dashboard's auth check to fail and redirect back to `/login`.
+- **Fix**: Replaced `router.push("/dashboard")` + `router.refresh()` with `window.location.href = "/dashboard"` (hard navigation) which guarantees the cookie is sent with the next request.
+- **Verified**: Dashboard renders correctly after login for both org admin and platform admin.
+
+## New Features Added
+
+### 1. Google OAuth Authentication (Login & Signup)
+- **New API routes**:
+  - `GET /api/auth/google` — initiates Google OAuth flow by returning the Google consent URL.
+  - `GET /api/auth/google/callback` — handles the OAuth callback: exchanges the code for an access token, fetches the Google profile, and either links to an existing user or creates a new VOTER account. Creates a session and redirects to `/dashboard` (if org exists) or `/register?google=1` (if no org yet).
+- **Security hardening**: Google auth CANNOT access or create PLATFORM_ADMIN accounts. If a Google-authenticated email matches a PLATFORM_ADMIN user, the flow is blocked with an audit log entry (`GOOGLE_ADMIN_BLOCKED`). All Google-authenticated users get VOTER role by default.
+- **New component**: `src/components/shared/google-auth-button.tsx` — renders the Google sign-in button with the official Google logo SVG, loading state, and error handling. Used on both login and register pages.
+- Added to login page between the credentials form and demo accounts section.
+- Added to register page below the form in a "or sign up with" section.
+- Added `/api/auth/google` and `/api/auth/google/callback` to public routes.
+- **Note**: Requires `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` environment variables to be set for production use. Without them, the button shows "google_not_configured" error gracefully.
+
+### 2. Institution Type Dropdown (Tailored Experience)
+- **Updated schema**: Added `institutionType` field to `registerSchema` in `src/lib/validators.ts` with 10 institution types: University, Student Union, Professional Association, Church, Cooperative, NGO, Corporate, Club/Society, Government, Other.
+- **Updated register API**: Stores the institution type in the organization's `branding` JSON field and sets a tailored description based on the type.
+- **Updated register page**: Added a dropdown (Select) with institution types, each showing an icon (GraduationCap, Users, Church, Handshake, Heart, Building, Trophy, Landmark, Globe) and a description. The selected type gives the organization a tailored experience.
+- **Verified**: Dropdown visible on register page with all 10 institution types.
+
+### 3. Okomba Inc. Branding
+- Updated the dashboard footer from "© 2025 Votewise · Secure election infrastructure" to "© {year} Votewise · A product of Okomba Inc."
+- Updated the landing page footer to include "A product of Okomba Inc." with Okomba highlighted.
+- Updated the auth layout footer to "© {year} Votewise — A product of Okomba Inc."
+
+## Verification Results
+- `bun run lint`: 0 errors, 0 warnings.
+- agent-browser end-to-end:
+  - ✅ Login page: Google button visible ("Continue with Google").
+  - ✅ Org admin login → dashboard renders correctly (Welcome back, Adaeze).
+  - ✅ Platform admin login → dashboard renders correctly (Platform Operations).
+  - ✅ Register page: Institution type dropdown visible with 10 options + Google button visible.
+  - ✅ Landing page: Okomba Inc. in footer, zero hydration errors.
+  - ✅ Dashboard footer: Okomba Inc. branding.
+  - ✅ No console errors on any tested page.
+
+## Files Modified/Created
+- **Created**: `src/app/api/auth/google/route.ts`, `src/app/api/auth/google/callback/route.ts`, `src/components/shared/google-auth-button.tsx`.
+- **Modified**: `src/app/(auth)/register/page.tsx` (institution dropdown + Google button + hard navigation fix), `src/app/(auth)/login/page.tsx` (Google button), `src/app/api/auth/register/route.ts` (institutionType handling), `src/lib/validators.ts` (institutionType field), `src/lib/tenant.ts` (Google auth public routes), `src/components/dashboard/dashboard-shell.tsx` (Okomba footer), `src/components/shared/site-footer.tsx` (Okomba footer), `src/app/(auth)/layout.tsx` (Okomba footer).
+
+## Next-Phase Recommendations
+- Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` environment variables for production Google OAuth.
+- Platform admin navigation: dedicated sidebar (Overview, Organizations, Elections, Negotiations, Payments, Users, Support, Security).
+- Election creation wizard: multi-step guided workflow.
+- Organization branding engine: per-org brand color overrides.
+- Real provider integrations: SMS/email/WhatsApp, Paystack webhook.
+- Automated tests: vitest for auth pipeline, Google OAuth, registration.

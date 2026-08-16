@@ -49,6 +49,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { PasswordInput } from "@/components/shared/password-input";
+import { GoogleAuthButton } from "@/components/shared/google-auth-button";
 
 type DemoAccount = { label: string; email: string; password: string };
 
@@ -258,9 +259,11 @@ function LoginForm() {
           <div className="relative">
             <Separator />
             <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
-              or
+              or continue with
             </span>
           </div>
+
+          <GoogleAuthButton className="mt-4" />
 
           <Collapsible open={demoOpen} onOpenChange={setDemoOpen} className="mt-4">
             <CollapsibleTrigger asChild>

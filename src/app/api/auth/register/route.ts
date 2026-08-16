@@ -36,6 +36,15 @@ export async function POST(request: Request) {
     const org = await OrganizationService.create({
       name: parsed.organizationName,
       ownerId: user.id,
+      description: getInstitutionDescription(parsed.institutionType),
+    });
+
+    // Store institution type in org's branding JSON for tailored experience
+    await db.organization.update({
+      where: { id: org.id },
+      data: {
+        branding: JSON.stringify({ institutionType: parsed.institutionType }),
+      },
     });
 
     await db.user.update({
@@ -77,4 +86,21 @@ export async function POST(request: Request) {
   } catch (e) {
     return handleError(e);
   }
+}
+
+const INSTITUTION_DESCRIPTIONS: Record<string, string> = {
+  UNIVERSITY: "University election management",
+  STUDENT_UNION: "Student union government elections",
+  PROFESSIONAL_ASSOCIATION: "Professional association elections",
+  CHURCH: "Church governance elections",
+  COOPERATIVE: "Cooperative society elections",
+  NGO: "NGO board elections",
+  CORPORATE: "Corporate board elections",
+  CLUB_SOCIETY: "Club & society elections",
+  GOVERNMENT: "Government institutional elections",
+  OTHER: "Organization elections",
+};
+
+function getInstitutionDescription(type?: string): string {
+  return INSTITUTION_DESCRIPTIONS[type ?? "UNIVERSITY"] ?? "Organization elections";
 }

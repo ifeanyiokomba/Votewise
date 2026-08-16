@@ -148,7 +148,7 @@ export default function AuthLayout({
         <footer className="mt-auto border-t border-border/70 px-6 py-4">
           <div className="mx-auto flex max-w-md flex-col items-center justify-between gap-2 text-xs text-muted-foreground sm:flex-row">
             <p>
-              © {new Date().getFullYear()} {APP_NAME}. All rights reserved.
+              © {new Date().getFullYear()} {APP_NAME} — A product of Okomba Inc.
             </p>
             <p className="text-center sm:text-right">
               ISO-grade security · Tamper-evident receipts

@@ -11,6 +11,16 @@ import {
   Mail,
   User,
   Check,
+  GraduationCap,
+  Users,
+  Church,
+  HandshakeIcon,
+  Building,
+  Landmark,
+  Heart,
+  Trophy,
+  Briefcase,
+  Globe,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -37,11 +47,32 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { PasswordInput } from "@/components/shared/password-input";
+import { GoogleAuthButton } from "@/components/shared/google-auth-button";
 import {
   PasswordStrengthMeter,
   PasswordRequirements,
 } from "@/components/shared/password-strength";
+
+const INSTITUTION_TYPES = [
+  { value: "UNIVERSITY", label: "University / Faculty", icon: GraduationCap, description: "Student union, faculty & departmental elections" },
+  { value: "STUDENT_UNION", label: "Student Union", icon: Users, description: "Student union government elections" },
+  { value: "PROFESSIONAL_ASSOCIATION", label: "Professional Association", icon: Briefcase, description: "Association executive elections" },
+  { value: "CHURCH", label: "Church / Religious Body", icon: Church, description: "Church governance & leadership elections" },
+  { value: "COOPERATIVE", label: "Cooperative Society", icon: HandshakeIcon, description: "Cooperative board & management elections" },
+  { value: "NGO", label: "NGO / Non-Profit", icon: Heart, description: "Board & trustee elections" },
+  { value: "CORPORATE", label: "Corporate Organization", icon: Building, description: "Board & shareholder elections" },
+  { value: "CLUB_SOCIETY", label: "Club / Society", icon: Trophy, description: "Club executive elections" },
+  { value: "GOVERNMENT", label: "Government Institution", icon: Landmark, description: "Institutional & agency elections" },
+  { value: "OTHER", label: "Other Organization", icon: Globe, description: "Custom election needs" },
+];
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -55,11 +86,13 @@ export default function RegisterPage() {
       email: "",
       password: "",
       organizationName: "",
+      institutionType: "UNIVERSITY",
     },
     mode: "onBlur",
   });
 
   const password = form.watch("password");
+  const institutionType = form.watch("institutionType");
 
   async function onSubmit(values: RegisterInput) {
     setError(null);
@@ -82,8 +115,9 @@ export default function RegisterPage() {
       toast.success("Account created", {
         description: "Welcome to Votewise. Redirecting to your dashboard…",
       });
-      router.push("/dashboard");
-      router.refresh();
+      // Use hard navigation to ensure the session cookie is properly
+      // propagated to the server on the next request.
+      window.location.href = "/dashboard";
     } finally {
       setSubmitting(false);
     }
@@ -203,6 +237,42 @@ export default function RegisterPage() {
               )}
             />
 
+            <FormField
+              control={form.control}
+              name="institutionType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Institution type</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select your institution type" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {INSTITUTION_TYPES.map((type) => {
+                        const Icon = type.icon;
+                        return (
+                          <SelectItem key={type.value} value={type.value}>
+                            <div className="flex items-center gap-2">
+                              <Icon className="size-4 text-muted-foreground" />
+                              <div>
+                                <span className="font-medium">{type.label}</span>
+                                <span className="block text-xs text-muted-foreground">
+                                  {type.description}
+                                </span>
+                              </div>
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <Button
               type="submit"
               disabled={submitting}
@@ -233,6 +303,18 @@ export default function RegisterPage() {
           </a>
           .
         </p>
+      </CardContent>
+
+      <Separator className="bg-border/70" />
+
+      <CardContent className="pt-6">
+        <div className="relative mb-4">
+          <Separator />
+          <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
+            or sign up with
+          </span>
+        </div>
+        <GoogleAuthButton />
       </CardContent>
 
       <Separator className="bg-border/70" />
