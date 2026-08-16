@@ -1,27 +1,17 @@
-import type { EmailProvider } from "../index";
+import type { EmailProvider } from "./types";
 
-/**
- * Resend email provider (alternative to SES).
- *
- * To use:
- *   1. Set EMAIL_PROVIDER=resend
- *   2. Set RESEND_API_KEY
- *   3. Set RESEND_FROM_EMAIL (e.g. noreply@votewise.com.ng)
- */
 export class ResendEmailProvider implements EmailProvider {
   readonly id = "resend";
   readonly name = "Resend";
 
-  private apiKey: string | undefined;
-  private fromEmail: string | undefined;
+  private creds: Record<string, string> = {};
 
-  constructor() {
-    this.apiKey = process.env.RESEND_API_KEY;
-    this.fromEmail = process.env.RESEND_FROM_EMAIL ?? "noreply@votewise.com.ng";
+  setCredentials(creds: Record<string, string>): void {
+    this.creds = creds;
   }
 
   isConfigured(): boolean {
-    return !!this.apiKey;
+    return !!this.creds.apiKey;
   }
 
   async send(params: {
@@ -34,11 +24,11 @@ export class ResendEmailProvider implements EmailProvider {
       const response = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${this.apiKey}`,
+          Authorization: `Bearer ${this.creds.apiKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: params.from ?? this.fromEmail!,
+          from: params.from ?? this.creds.fromEmail ?? "noreply@votewise.com.ng",
           to: [params.to],
           subject: params.subject,
           text: params.body,
@@ -47,24 +37,14 @@ export class ResendEmailProvider implements EmailProvider {
       });
 
       if (!response.ok) {
-        const errorBody = await response.text();
-        return {
-          success: false,
-          error: `Resend API error (${response.status}): ${errorBody}`,
-        };
+        return { success: false, error: `Resend error (${response.status})` };
       }
 
       const data = await response.json();
-      return {
-        success: true,
-        messageId: data.id,
-      };
+      return { success: true, messageId: data.id };
     } catch (error) {
       console.error("[Resend] send failed:", error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Resend send failed",
-      };
+      return { success: false, error: error instanceof Error ? error.message : "Resend error" };
     }
   }
 }

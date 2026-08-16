@@ -635,3 +635,23 @@ model SupportMessage {
 
   @@index([ticketId])
 }
+
+// ─── Provider Configuration (plug-and-play) ────────────────────────
+// Stores credentials for email/SMS/WhatsApp providers in the database.
+// Managed via the platform admin UI — no .env editing or code changes needed.
+// Credentials are encrypted at rest using AES-256.
+
+model ProviderConfig {
+  id          String   @id @default(cuid())
+  type        String   // "EMAIL" | "SMS" | "WHATSAPP"
+  provider    String   // "ses" | "resend" | "termii" | "mock" etc.
+  isActive    Boolean  @default(false)
+  // Encrypted JSON blob: { apiKey, secretKey, region, fromEmail, senderId, ... }
+  credentials String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([type, provider])
+  @@index([type])
+  @@index([isActive])
+}

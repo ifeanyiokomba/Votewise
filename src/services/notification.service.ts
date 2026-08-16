@@ -15,17 +15,9 @@ export interface SendNotificationInput {
 /**
  * Provider-agnostic notification service.
  *
- * This service queues notifications in the database and dispatches them
- * via the active provider (selected via env vars). Providers can be
- * swapped at any time by changing env vars — no code changes needed.
- *
- * Active providers are determined by:
- *   EMAIL_PROVIDER=ses|resend|mock    (default: mock)
- *   SMS_PROVIDER=termii|mock          (default: mock)
- *   WHATSAPP_PROVIDER=termii|mock      (default: mock)
- *
- * If a provider is not configured, the system automatically falls back
- * to the mock provider — guaranteeing stability.
+ * Reads the active provider from the database (managed via platform admin UI).
+ * Providers can be swapped at any time from the admin panel — no code or env changes.
+ * If no provider is configured, falls back to mock (always stable).
  */
 export class NotificationService {
   static async queue(input: SendNotificationInput) {
@@ -56,24 +48,18 @@ export class NotificationService {
     });
   }
 
-  /**
-   * Dispatch a notification via the active provider.
-   * Routes to the correct provider based on notification type (EMAIL/SMS/WHATSAPP).
-   */
   static async dispatch(notificationId: string, payload?: { code?: string }) {
     const notification = await db.notification.findUnique({
       where: { id: notificationId },
     });
 
-    if (!notification) {
-      return { delivered: false, error: "Notification not found" };
-    }
+    if (!notification) return { delivered: false, error: "Notification not found" };
 
     let result: { success: boolean; messageId?: string; error?: string };
 
     switch (notification.type) {
       case "EMAIL": {
-        const provider = getEmailProvider();
+        const provider = await getEmailProvider();
         result = await provider.send({
           to: notification.recipient,
           subject: notification.subject ?? "Votewise Notification",
@@ -81,47 +67,35 @@ export class NotificationService {
         });
         break;
       }
-
       case "SMS": {
-        const provider = getSMSProvider();
+        const provider = await getSMSProvider();
         result = await provider.send({
           to: notification.recipient,
           body: notification.body,
         });
         break;
       }
-
       case "WHATSAPP": {
-        const provider = getWhatsAppProvider();
+        const provider = await getWhatsAppProvider();
         result = await provider.send({
           to: notification.recipient,
           body: notification.body,
         });
         break;
       }
-
       case "IN_APP":
       default:
-        // In-app notifications don't need a provider — just mark as sent
         await this.markSent(notificationId);
         return { delivered: true, ...(payload ? { preview: payload } : {}) };
     }
 
     if (result.success) {
       await this.markSent(notificationId);
-      return {
-        delivered: true,
-        providerMessageId: result.messageId,
-        ...(payload ? { preview: payload } : {}),
-      };
+      return { delivered: true, providerMessageId: result.messageId, ...(payload ? { preview: payload } : {}) };
     } else {
       await this.markFailed(notificationId);
       console.error(`[notification] dispatch failed for ${notificationId}:`, result.error);
-      return {
-        delivered: false,
-        error: result.error,
-        ...(payload ? { preview: payload } : {}),
-      };
+      return { delivered: false, error: result.error, ...(payload ? { preview: payload } : {}) };
     }
   }
 
