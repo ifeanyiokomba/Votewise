@@ -280,3 +280,130 @@
   outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
+
+/* === VOTEWISE ANIMATION SYSTEM === */
+
+/* Floating animation for background objects */
+@keyframes vw-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-20px) rotate(3deg); }
+}
+.animate-vw-float { animation: vw-float 6s ease-in-out infinite; }
+
+/* Slow float for large orbs */
+@keyframes vw-float-slow {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -20px) scale(1.05); }
+  66% { transform: translate(-20px, 15px) scale(0.95); }
+}
+.animate-vw-float-slow { animation: vw-float-slow 15s ease-in-out infinite; }
+
+/* Pulse glow for security indicators */
+@keyframes vw-pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 color-mix(in oklch, var(--primary) 30%, transparent),
+                0 0 20px 0 color-mix(in oklch, var(--primary) 10%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 8px color-mix(in oklch, var(--primary) 0%, transparent),
+                0 0 40px 4px color-mix(in oklch, var(--primary) 20%, transparent);
+  }
+}
+.animate-vw-pulse-glow { animation: vw-pulse-glow 3s ease-in-out infinite; }
+
+/* Shield breathe — for security icons */
+@keyframes vw-shield-breathe {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.08); opacity: 1; }
+}
+.animate-vw-shield-breathe { animation: vw-shield-breathe 4s ease-in-out infinite; }
+
+/* Count-up reveal for numbers */
+@keyframes vw-count-reveal {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-vw-count-reveal { animation: vw-count-reveal 0.5s ease-out both; }
+
+/* Slide-in from left (for staggered entrances) */
+@keyframes vw-slide-in-left {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.animate-vw-slide-in-left { animation: vw-slide-in-left 0.5s ease-out both; }
+
+/* Progress bar fill */
+@keyframes vw-fill {
+  from { width: 0%; }
+  to { width: var(--vw-fill-target, 100%); }
+}
+.animate-vw-fill { animation: vw-fill 1.5s ease-out both; }
+
+/* Vote drop — ballot falling into a counter */
+@keyframes vw-vote-drop {
+  0% { transform: translateY(-30px) rotate(0deg); opacity: 0; }
+  10% { opacity: 0.6; }
+  90% { opacity: 0.6; }
+  100% { transform: translateY(400px) rotate(10deg); opacity: 0; }
+}
+
+/* Shimmer sweep for gradient text */
+@keyframes vw-shimmer-text {
+  0% { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+.text-gradient-animated {
+  background: linear-gradient(90deg, var(--primary), var(--chart-2), var(--chart-3), var(--primary));
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: vw-shimmer-text 4s linear infinite;
+}
+
+/* Grid background with animated mask */
+.bg-grid-animated {
+  background-image: linear-gradient(to right, color-mix(in oklch, var(--primary) 12%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklch, var(--primary) 12%, transparent) 1px, transparent 1px);
+  background-size: 48px 48px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 50%, transparent 100%);
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 50%, transparent 100%);
+}
+
+/* Animated gradient background */
+.bg-animated-gradient {
+  background: linear-gradient(135deg, 
+    color-mix(in oklch, var(--primary) 8%, transparent) 0%,
+    color-mix(in oklch, var(--chart-2) 6%, transparent) 25%,
+    color-mix(in oklch, var(--chart-3) 8%, transparent) 50%,
+    color-mix(in oklch, var(--chart-2) 6%, transparent) 75%,
+    color-mix(in oklch, var(--primary) 8%, transparent) 100%
+  );
+  background-size: 400% 400%;
+  animation: vw-gradient-shift 12s ease infinite;
+}
+@keyframes vw-gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Card entrance with stagger */
+@keyframes vw-card-enter {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-vw-card-enter { animation: vw-card-enter 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Ballot tick animation — checkmark drawing */
+@keyframes vw-tick-draw {
+  0% { stroke-dashoffset: 30; }
+  100% { stroke-dashoffset: 0; }
+}
+
+/* Lock state animation */
+@keyframes vw-lock-pulse {
+  0%, 100% { filter: drop-shadow(0 0 0 color-mix(in oklch, var(--primary) 0%, transparent)); }
+  50% { filter: drop-shadow(0 0 8px color-mix(in oklch, var(--primary) 40%, transparent)); }
+}
+.animate-vw-lock-pulse { animation: vw-lock-pulse 2.5s ease-in-out infinite; }

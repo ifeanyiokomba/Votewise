@@ -1468,3 +1468,64 @@ The "Quick fill" button worked because it used `form.setValue()` which bypasses 
 
 ## Key Insight
 The "dashboard not opening" issue was NOT a routing problem or a cookie race condition. It was a **form submission failure** — React Hook Form's state wasn't being updated by React 19's event system, causing `handleSubmit` to validate against empty values and fail silently. The fix eliminates RHF entirely, using plain `useState` which is immune to event delegation issues.
+
+---
+Task ID: CRON-16 (webDevReview round 16 — Visual Appeal, Animations & Security Visualization)
+Agent: Lead (orchestrator) — cron-triggered continuous review
+Task: Improve web app coloration, add background animations showing vote security and counting.
+
+## Changes Implemented
+
+### 1. Animation System (globals.css)
+Added a comprehensive Votewise animation system with 15+ keyframe animations:
+- **vw-float / vw-float-slow**: Floating background objects (orbs, gradient blobs)
+- **vw-pulse-glow**: Pulsing glow effect for security indicators and CTAs
+- **vw-shield-breathe**: Breathing animation for shield/security icons
+- **vw-count-reveal**: Number count-up reveal animation
+- **vw-slide-in-left**: Staggered entrance from left
+- **vw-fill**: Progress bar fill animation
+- **vw-vote-drop**: Ballot falling into counter animation
+- **vw-shimmer-text**: Animated gradient text (shimmer sweep)
+- **vw-card-enter**: Card entrance with scale + fade
+- **vw-lock-pulse**: Lock icon glow pulse for security
+- **vw-gradient-shift**: Animated gradient background (4-color shift)
+- **bg-grid-animated**: Grid background with primary-tinted lines
+- **bg-animated-gradient**: Multi-color animated gradient background
+- **text-gradient-animated**: Shimmering gradient text
+
+### 2. Animated Background Components (animated-backgrounds.tsx)
+Created 4 reusable animated components:
+
+**SecurityBackground**: Floating vote/ballot icons (🗳️ ✓ 🔒 ⚡ 🛡️ 📊), animated gradient orbs that drift, SVG connection lines showing data flow with animated stroke-dasharray, and a pulsing shield indicator showing security.
+
+**VoteCountingAnimation**: 12 falling ballot particles (✓ checkmarks) that drop from top to bottom with varying speeds, plus a progress bar at the bottom that fills from 0% to 100% — visually representing votes being counted.
+
+**DataFlowParticles**: Small dots flowing up and down across the screen, representing secure data transmission (votes traveling through the system).
+
+**CountUpNumber**: Animates a number from 0 to target using requestAnimationFrame with ease-out cubic interpolation. Used for hero stats (10,000+ voters, 100% auditable).
+
+### 3. Landing Page Hero Enhancement
+- Replaced static `bg-grid` + `bg-radial-fade` with `bg-animated-gradient` (4-color shifting gradient) + `bg-grid-animated` (primary-tinted grid)
+- Added `<SecurityBackground />` to the hero (floating icons, orbs, shield pulse, connection lines)
+- Added `<DataFlowParticles />` for data flow visualization
+- Changed `<span className="text-gradient">` to `<span className="text-gradient-animated">` (shimmering gradient text)
+- Added `animate-vw-pulse-glow` to the primary CTA button
+- Replaced static stat numbers with `<CountUpNumber>` components (animate from 0 to 10,000 and 0 to 100)
+- Added `<VoteCountingAnimation />` overlay to the HeroPreviewCard (falling ballots visible behind the mock dashboard)
+
+### 4. Hero Preview Card Enhancement
+- Added `animate-vw-float-slow` to the gradient glow behind the card
+- Added `animate-vw-card-enter` to the card itself
+- Added `VoteCountingAnimation` as a semi-transparent overlay showing ballots being counted
+
+## Verification Results
+- `bun run lint`: 0 errors, 0 warnings.
+- agent-browser:
+  - ✅ Landing page loads with animated backgrounds (floating emojis visible, zero errors)
+  - ✅ Login → dashboard works correctly
+  - ✅ No console errors, no hydration errors
+  - ✅ Dev log clean
+
+## Files Modified/Created
+- **Created**: `src/components/shared/animated-backgrounds.tsx`
+- **Modified**: `src/app/globals.css` (15+ new animation keyframes + utility classes), `src/app/page.tsx` (hero with animated backgrounds, CountUpNumber, VoteCountingAnimation)

@@ -36,6 +36,7 @@ import { Logo } from "@/components/shared/logo";
 import { Reveal } from "@/components/shared/reveal";
 import { SiteHeader } from "@/components/shared/site-header";
 import { SiteFooter } from "@/components/shared/site-footer";
+import { SecurityBackground, DataFlowParticles, VoteCountingAnimation, CountUpNumber } from "@/components/shared/animated-backgrounds";
 import { SUBSCRIPTION_PLANS, APP_NAME } from "@/lib/constants";
 import { formatCurrency, formatNumber, cn } from "@/lib/utils";
 
@@ -272,12 +273,10 @@ export default function HomePage() {
 
 function Hero() {
   return (
-    <section className="relative overflow-hidden" aria-labelledby="hero-heading">
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-grid" />
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-radial-fade" />
-      {/* Decorative floating orbs */}
-      <div className="pointer-events-none absolute -right-20 top-10 -z-10 h-72 w-72 rounded-full bg-primary/10 blur-3xl" />
-      <div className="pointer-events-none absolute -left-20 bottom-10 -z-10 h-64 w-64 rounded-full bg-chart-2/10 blur-3xl" />
+    <section className="relative overflow-hidden bg-animated-gradient" aria-labelledby="hero-heading">
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-grid-animated" />
+      <SecurityBackground />
+      <DataFlowParticles />
 
       <div className="mx-auto max-w-7xl px-4 pb-20 pt-14 sm:px-6 sm:pb-28 sm:pt-20 lg:px-8 lg:pt-24">
         <div className="grid items-center gap-12 lg:grid-cols-2">
@@ -297,7 +296,7 @@ function Hero() {
               id="hero-heading"
               className="mt-5 text-4xl font-bold leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl"
             >
-              <span className="text-gradient">Election Management</span> Built
+              <span className="text-gradient-animated">Election Management</span> Built
               for Organizations
             </h1>
 
@@ -308,7 +307,7 @@ function Hero() {
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Button asChild size="lg" className="group shadow-glow">
+              <Button asChild size="lg" className="group shadow-glow animate-vw-pulse-glow">
                 <Link href="/register">
                   Start Free Election
                   <ArrowRight className="transition-transform group-hover:translate-x-0.5" />
@@ -324,13 +323,17 @@ function Hero() {
                 <dt className="text-xs uppercase tracking-wide text-muted-foreground">
                   Voters supported
                 </dt>
-                <dd className="mt-1 text-2xl font-bold tabular-nums">10k+</dd>
+                <dd className="mt-1 text-2xl font-bold tabular-nums">
+                  <CountUpNumber target={10000} />+
+                </dd>
               </div>
               <div>
                 <dt className="text-xs uppercase tracking-wide text-muted-foreground">
                   Auditable
                 </dt>
-                <dd className="mt-1 text-2xl font-bold tabular-nums">100%</dd>
+                <dd className="mt-1 text-2xl font-bold tabular-nums">
+                  <CountUpNumber target={100} />%
+                </dd>
               </div>
               <div>
                 <dt className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -357,10 +360,14 @@ function HeroPreviewCard() {
     <div className="relative">
       <div
         aria-hidden
-        className="absolute -inset-6 -z-10 rounded-3xl bg-primary/10 blur-3xl"
+        className="absolute -inset-6 -z-10 rounded-3xl bg-primary/10 blur-3xl animate-vw-float-slow"
       />
-      <Card className="overflow-hidden shadow-glow">
+      <Card className="overflow-hidden shadow-glow animate-vw-card-enter">
         <CardContent className="p-5 sm:p-6">
+          {/* Vote counting animation overlay */}
+          <div className="pointer-events-none absolute inset-0 overflow-hidden opacity-40">
+            <VoteCountingAnimation />
+          </div>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
