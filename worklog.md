@@ -1387,3 +1387,84 @@ Task: Fix remaining dashboard routing issue, add Google OAuth, add institution t
 - Organization branding engine: per-org brand color overrides.
 - Real provider integrations: SMS/email/WhatsApp, Paystack webhook.
 - Automated tests: vitest for auth pipeline, Google OAuth, registration.
+
+---
+Task ID: CRON-15 (webDevReview round 15 — Organization Sign-In Root Cause Audit & Fix)
+Agent: Lead (orchestrator) — cron-triggered continuous review
+Task: Systematic audit of organization sign-in issue, root cause diagnosis, and perfect working solution implementation.
+
+## Systematic Audit Process
+
+### Step 1: Reproduce the Issue
+- Tested login with `agent-browser fill` (simulating manual input) → **FAILED** — stayed on `/login`, no error shown
+- Tested login with `agent-browser type` (real keystrokes) → **FAILED** — same result
+- Tested login with "Quick fill" button → **WORKED** — redirected to `/dashboard`
+
+### Step 2: Trace the Full Auth Pipeline
+```
+User types email → Input onChange → RHF updates state?
+User types password → Input onChange → RHF updates state?
+User clicks "Sign in" → form.handleSubmit() called → validates state → if valid: onSubmit()
+onSubmit() → fetch /api/auth/login → API returns 200 → window.location.href = "/dashboard"
+```
+
+### Step 3: Identify the Breakpoint
+- Installed a fetch interceptor in the browser to trace API calls
+- **Result**: The fetch to `/api/auth/login` was NEVER called when using manual input
+- This means `form.handleSubmit()` was called but `onSubmit()` was never invoked
+- `handleSubmit()` only skips `onSubmit` when **validation fails**
+
+### Step 4: Root Cause Diagnosis
+- Tested the Zod schema directly → validation passes with correct values
+- Tested the `zodResolver` directly → returns correct values with no errors
+- Checked React version → React 19.2.3 (new event delegation system)
+- Checked RHF version → react-hook-form 7.71.1
+
+**ROOT CAUSE**: React Hook Form's internal state was NOT being updated when the user typed in the input fields. The `onChange` events from React 19's synthetic event system were not properly triggering RHF's state updates. When `handleSubmit()` was called, it validated against the **default empty values** (`{ email: "", password: "" }`), which failed validation silently (no visible error because the form fields were visually populated).
+
+The "Quick fill" button worked because it used `form.setValue()` which bypasses the event system and directly sets RHF's internal state, then calls `form.handleSubmit(onSubmit)()`.
+
+### Step 5: Solution Implementation
+
+**Approach**: Completely rewrite the login and register forms without React Hook Form, using plain `useState` for form state management. This is bulletproof because:
+1. `useState` + `onChange` is the most fundamental React pattern — no compatibility issues possible
+2. The form values are always in sync with the DOM
+3. Validation is done inline with simple `if` statements
+4. No dependency on `zodResolver`, `@hookform/resolvers`, or `react-hook-form`
+
+**Login page changes**:
+- Replaced `useForm` + `FormField` + `FormControl` with plain `<Input value={email} onChange={...} />`
+- Replaced zod schema validation with inline checks (`if (!email.includes("@"))`)
+- Added error query param handling for Google auth redirect errors
+- Updated `quickFill` to set state directly and use `form.requestSubmit()`
+
+**Register page changes**:
+- Same approach — replaced all RHF components with plain `useState`
+- Kept the institution type dropdown, password strength meter, and Google auth button
+- Inline validation for all fields
+
+## Verification Results
+
+### Login Tests (ALL PASSING):
+1. ✅ Manual fill + click "Sign in" → redirects to `/dashboard` (was BROKEN before fix)
+2. ✅ Real keystroke typing + click "Sign in" → redirects to `/dashboard`
+3. ✅ Quick fill button → redirects to `/dashboard` (was already working)
+4. ✅ Platform admin login → redirects to `/dashboard` with Platform Operations console
+5. ✅ Refresh after login → dashboard persists
+6. ✅ Direct URL access (`/dashboard/elections`) → works correctly
+7. ✅ Back button → returns to `/dashboard`
+
+### Registration Test:
+8. ✅ Fill all fields + click "Create account" → creates org, redirects to `/dashboard` with new org in sidebar
+
+### Error Cases:
+9. ✅ No console errors on any page
+10. ✅ No dev.log errors
+11. ✅ Lint passes with 0 errors
+
+## Files Modified
+- `src/app/(auth)/login/page.tsx` — completely rewritten without React Hook Form
+- `src/app/(auth)/register/page.tsx` — completely rewritten without React Hook Form
+
+## Key Insight
+The "dashboard not opening" issue was NOT a routing problem or a cookie race condition. It was a **form submission failure** — React Hook Form's state wasn't being updated by React 19's event system, causing `handleSubmit` to validate against empty values and fail silently. The fix eliminates RHF entirely, using plain `useState` which is immune to event delegation issues.

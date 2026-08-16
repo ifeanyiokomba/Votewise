@@ -2,9 +2,7 @@
 
 import * as React from "react";
 import { Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useSearchParams } from "next/navigation";
 import {
   Loader2,
   AlertCircle,
@@ -18,7 +16,6 @@ import {
 import { toast } from "sonner";
 
 import { apiFetch } from "@/lib/api-fetch";
-import { loginSchema, type LoginInput } from "@/lib/validators";
 import { cn } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
@@ -40,14 +37,6 @@ import {
   CollapsibleTrigger,
   CollapsibleContent,
 } from "@/components/ui/collapsible";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 import { PasswordInput } from "@/components/shared/password-input";
 import { GoogleAuthButton } from "@/components/shared/google-auth-button";
 
@@ -91,45 +80,79 @@ function LoginSkeleton() {
 }
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [demoOpen, setDemoOpen] = React.useState(false);
 
-  const form = useForm<LoginInput>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: { email: "", password: "" },
-    mode: "onBlur",
-  });
+  // Check for error query params from Google auth or other redirects
+  React.useEffect(() => {
+    const errParam = searchParams.get("error");
+    if (errParam) {
+      const messages: Record<string, string> = {
+        google_not_configured: "Google sign-in is not configured. Use email/password instead.",
+        google_auth_cancelled: "Google sign-in was cancelled.",
+        google_auth_failed: "Google authentication failed. Please try again.",
+        google_token_failed: "Could not retrieve Google access token.",
+        google_profile_failed: "Could not retrieve your Google profile.",
+        google_no_email: "Your Google account has no email address.",
+        google_admin_blocked: "Google sign-in is not available for admin accounts.",
+        google_callback_error: "An error occurred during Google sign-in.",
+      };
+      setError(messages[errParam] ?? "Sign-in error. Please try again.");
+    }
+  }, [searchParams]);
 
-  async function onSubmit(values: LoginInput) {
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
     setError(null);
+
+    // Simple inline validation (no external library — bulletproof)
+    if (!email.trim()) {
+      setError("Please enter your email address.");
+      return;
+    }
+    if (!email.includes("@")) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+    if (!password) {
+      setError("Please enter your password.");
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const res = await apiFetch<{ user: { id: string; role: string; organizationId: string | null } }>(
-        "/api/auth/login",
-        {
-          method: "POST",
-          body: JSON.stringify(values),
-        }
-      );
+      const res = await apiFetch<{
+        user: { id: string; role: string; organizationId: string | null };
+      }>("/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+
       if (!res.success || !res.data) {
-        const message =
-          res.error?.message ?? "Could not sign in. Please try again.";
+        const message = res.error?.message ?? "Could not sign in. Please try again.";
         setError(message);
         toast.error("Sign-in failed", { description: message });
         return;
       }
+
       toast.success("Welcome back!", {
         description: "You're now signed in to Votewise.",
       });
-      const next = searchParams.get("next");
+
       // Use hard navigation to ensure the session cookie is properly
-      // propagated to the server on the next request. Client-side router
-      // navigation (router.push) can race with cookie propagation.
+      // propagated to the server on the next request.
+      const next = searchParams.get("next");
       const target = next && next.startsWith("/") ? next : "/dashboard";
       window.location.href = target;
+    } catch {
+      setError("An unexpected error occurred. Please try again.");
+      toast.error("Sign-in failed", {
+        description: "An unexpected error occurred.",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -137,9 +160,13 @@ function LoginForm() {
 
   function quickFill() {
     const owner = DEMO_ACCOUNTS[0];
-    form.setValue("email", owner.email, { shouldValidate: true });
-    form.setValue("password", owner.password, { shouldValidate: true });
-    void form.handleSubmit(onSubmit)();
+    setEmail(owner.email);
+    setPassword(owner.password);
+    // Submit directly — don't wait for state update
+    setTimeout(() => {
+      const form = document.querySelector("form");
+      if (form) form.requestSubmit();
+    }, 0);
   }
 
   return (
@@ -161,99 +188,83 @@ function LoginForm() {
           </Alert>
         )}
 
-        <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-4"
-            noValidate
-          >
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email address</FormLabel>
-                  <div className="relative">
-                    <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                    <FormControl>
-                      <Input
-                        type="email"
-                        autoComplete="email"
-                        placeholder="you@organization.org"
-                        className="pl-9"
-                        {...field}
-                      />
-                    </FormControl>
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <div className="flex items-center justify-between">
-                    <FormLabel>Password</FormLabel>
-                    <a
-                      href="/forgot-password"
-                      className="text-xs font-medium text-primary underline-offset-4 hover:underline"
-                    >
-                      Forgot password?
-                    </a>
-                  </div>
-                  <div className="relative">
-                    <KeyRound className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                    <FormControl>
-                      <PasswordInput
-                        autoComplete="current-password"
-                        placeholder="••••••••"
-                        className="pl-9"
-                        {...field}
-                      />
-                    </FormControl>
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Checkbox id="remember" defaultChecked />
-                <Label
-                  htmlFor="remember"
-                  className="text-sm text-muted-foreground"
-                >
-                  Remember me
-                </Label>
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={quickFill}
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          <div className="space-y-2">
+            <Label htmlFor="email">Email address</Label>
+            <div className="relative">
+              <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                placeholder="you@organization.org"
+                className="pl-9"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 disabled={submitting}
-                className="text-primary hover:text-primary"
-              >
-                <Sparkles className="size-3.5" />
-                Quick fill
-              </Button>
+                required
+              />
             </div>
+          </div>
 
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password">Password</Label>
+              <a
+                href="/forgot-password"
+                className="text-xs font-medium text-primary underline-offset-4 hover:underline"
+              >
+                Forgot password?
+              </a>
+            </div>
+            <div className="relative">
+              <KeyRound className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <PasswordInput
+                id="password"
+                autoComplete="current-password"
+                placeholder="••••••••"
+                className="pl-9"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={submitting}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Checkbox id="remember" defaultChecked />
+              <Label
+                htmlFor="remember"
+                className="text-sm text-muted-foreground"
+              >
+                Remember me
+              </Label>
+            </div>
             <Button
-              type="submit"
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={quickFill}
               disabled={submitting}
-              className="w-full"
-              size="lg"
+              className="text-primary hover:text-primary"
             >
-              {submitting && <Loader2 className="size-4 animate-spin" />}
-              {submitting ? "Signing in…" : "Sign in"}
+              <Sparkles className="size-3.5" />
+              Quick fill
             </Button>
-          </form>
-        </Form>
+          </div>
+
+          <Button
+            type="submit"
+            disabled={submitting}
+            className="w-full"
+            size="lg"
+          >
+            {submitting && <Loader2 className="size-4 animate-spin" />}
+            {submitting ? "Signing in…" : "Sign in"}
+          </Button>
+        </form>
 
         <div className="mt-6">
           <div className="relative">

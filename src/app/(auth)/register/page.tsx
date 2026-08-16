@@ -1,9 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Loader2,
   AlertCircle,
@@ -14,7 +11,6 @@ import {
   GraduationCap,
   Users,
   Church,
-  HandshakeIcon,
   Building,
   Landmark,
   Heart,
@@ -25,10 +21,10 @@ import {
 import { toast } from "sonner";
 
 import { apiFetch } from "@/lib/api-fetch";
-import { registerSchema, type RegisterInput } from "@/lib/validators";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import {
   Card,
@@ -39,14 +35,6 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 import {
   Select,
   SelectContent,
@@ -66,7 +54,7 @@ const INSTITUTION_TYPES = [
   { value: "STUDENT_UNION", label: "Student Union", icon: Users, description: "Student union government elections" },
   { value: "PROFESSIONAL_ASSOCIATION", label: "Professional Association", icon: Briefcase, description: "Association executive elections" },
   { value: "CHURCH", label: "Church / Religious Body", icon: Church, description: "Church governance & leadership elections" },
-  { value: "COOPERATIVE", label: "Cooperative Society", icon: HandshakeIcon, description: "Cooperative board & management elections" },
+  { value: "COOPERATIVE", label: "Cooperative Society", icon: Heart, description: "Cooperative board & management elections" },
   { value: "NGO", label: "NGO / Non-Profit", icon: Heart, description: "Board & trustee elections" },
   { value: "CORPORATE", label: "Corporate Organization", icon: Building, description: "Board & shareholder elections" },
   { value: "CLUB_SOCIETY", label: "Club / Society", icon: Trophy, description: "Club executive elections" },
@@ -75,49 +63,77 @@ const INSTITUTION_TYPES = [
 ];
 
 export default function RegisterPage() {
-  const router = useRouter();
+  const [name, setName] = React.useState("");
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
+  const [organizationName, setOrganizationName] = React.useState("");
+  const [institutionType, setInstitutionType] = React.useState("UNIVERSITY");
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  const form = useForm<RegisterInput>({
-    resolver: zodResolver(registerSchema),
-    defaultValues: {
-      name: "",
-      email: "",
-      password: "",
-      organizationName: "",
-      institutionType: "UNIVERSITY",
-    },
-    mode: "onBlur",
-  });
-
-  const password = form.watch("password");
-  const institutionType = form.watch("institutionType");
-
-  async function onSubmit(values: RegisterInput) {
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
     setError(null);
+
+    // Inline validation — bulletproof, no external library
+    if (!name.trim() || name.trim().length < 2) {
+      setError("Please enter your full name (at least 2 characters).");
+      return;
+    }
+    if (!email.trim() || !email.includes("@")) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+    if (!/[A-Z]/.test(password)) {
+      setError("Password must include at least one uppercase letter.");
+      return;
+    }
+    if (!/[0-9]/.test(password)) {
+      setError("Password must include at least one number.");
+      return;
+    }
+    if (!organizationName.trim() || organizationName.trim().length < 2) {
+      setError("Please enter your organization name.");
+      return;
+    }
+
     setSubmitting(true);
     try {
       const res = await apiFetch<{ user: { id: string } }>(
         "/api/auth/register",
         {
           method: "POST",
-          body: JSON.stringify(values),
+          body: JSON.stringify({
+            name: name.trim(),
+            email: email.trim(),
+            password,
+            organizationName: organizationName.trim(),
+            institutionType,
+          }),
         }
       );
+
       if (!res.success || !res.data) {
-        const message =
-          res.error?.message ?? "Could not create your account. Try again.";
+        const message = res.error?.message ?? "Could not create your account.";
         setError(message);
         toast.error("Registration failed", { description: message });
         return;
       }
+
       toast.success("Account created", {
         description: "Welcome to Votewise. Redirecting to your dashboard…",
       });
-      // Use hard navigation to ensure the session cookie is properly
-      // propagated to the server on the next request.
+      // Hard navigation — guarantees cookie propagation
       window.location.href = "/dashboard";
+    } catch {
+      setError("An unexpected error occurred. Please try again.");
+      toast.error("Registration failed", {
+        description: "An unexpected error occurred.",
+      });
     } finally {
       setSubmitting(false);
     }
@@ -142,148 +158,114 @@ export default function RegisterPage() {
           </Alert>
         )}
 
-        <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-4"
-            noValidate
-          >
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Full name</FormLabel>
-                  <div className="relative">
-                    <User className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                    <FormControl>
-                      <Input
-                        autoComplete="name"
-                        placeholder="Ada Okonkwo"
-                        className="pl-9"
-                        {...field}
-                      />
-                    </FormControl>
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          <div className="space-y-2">
+            <Label htmlFor="name">Full name</Label>
+            <div className="relative">
+              <User className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="name"
+                autoComplete="name"
+                placeholder="Ada Okonkwo"
+                className="pl-9"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                disabled={submitting}
+                required
+              />
+            </div>
+          </div>
 
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Work email</FormLabel>
-                  <div className="relative">
-                    <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                    <FormControl>
-                      <Input
-                        type="email"
-                        autoComplete="email"
-                        placeholder="you@organization.org"
-                        className="pl-9"
-                        {...field}
-                      />
-                    </FormControl>
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <div className="space-y-2">
+            <Label htmlFor="email">Work email</Label>
+            <div className="relative">
+              <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                placeholder="you@organization.org"
+                className="pl-9"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={submitting}
+                required
+              />
+            </div>
+          </div>
 
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Password</FormLabel>
-                  <div className="relative">
-                    <FormControl>
-                      <PasswordInput
-                        autoComplete="new-password"
-                        placeholder="Create a strong password"
-                        {...field}
-                      />
-                    </FormControl>
-                  </div>
-                  <PasswordStrengthMeter password={password ?? ""} />
-                  <PasswordRequirements password={password ?? ""} />
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="organizationName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Organization name</FormLabel>
-                  <div className="relative">
-                    <Building2 className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                    <FormControl>
-                      <Input
-                        autoComplete="organization"
-                        placeholder="Nnamdi Azikiwe University"
-                        className="pl-9"
-                        {...field}
-                      />
-                    </FormControl>
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="institutionType"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Institution type</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select your institution type" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {INSTITUTION_TYPES.map((type) => {
-                        const Icon = type.icon;
-                        return (
-                          <SelectItem key={type.value} value={type.value}>
-                            <div className="flex items-center gap-2">
-                              <Icon className="size-4 text-muted-foreground" />
-                              <div>
-                                <span className="font-medium">{type.label}</span>
-                                <span className="block text-xs text-muted-foreground">
-                                  {type.description}
-                                </span>
-                              </div>
-                            </div>
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <Button
-              type="submit"
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <PasswordInput
+              id="password"
+              autoComplete="new-password"
+              placeholder="Create a strong password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               disabled={submitting}
-              className="w-full"
-              size="lg"
+              required
+            />
+            <PasswordStrengthMeter password={password} />
+            <PasswordRequirements password={password} />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="orgName">Organization name</Label>
+            <div className="relative">
+              <Building2 className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="orgName"
+                autoComplete="organization"
+                placeholder="Nnamdi Azikiwe University"
+                className="pl-9"
+                value={organizationName}
+                onChange={(e) => setOrganizationName(e.target.value)}
+                disabled={submitting}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="institutionType">Institution type</Label>
+            <Select
+              value={institutionType}
+              onValueChange={setInstitutionType}
             >
-              {submitting && <Loader2 className="size-4 animate-spin" />}
-              {submitting ? "Creating account…" : "Create account"}
-            </Button>
-          </form>
-        </Form>
+              <SelectTrigger id="institutionType" className="w-full">
+                <SelectValue placeholder="Select your institution type" />
+              </SelectTrigger>
+              <SelectContent>
+                {INSTITUTION_TYPES.map((type) => {
+                  const Icon = type.icon;
+                  return (
+                    <SelectItem key={type.value} value={type.value}>
+                      <div className="flex items-center gap-2">
+                        <Icon className="size-4 text-muted-foreground" />
+                        <div>
+                          <span className="font-medium">{type.label}</span>
+                          <span className="block text-xs text-muted-foreground">
+                            {type.description}
+                          </span>
+                        </div>
+                      </div>
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Button
+            type="submit"
+            disabled={submitting}
+            className="w-full"
+            size="lg"
+          >
+            {submitting && <Loader2 className="size-4 animate-spin" />}
+            {submitting ? "Creating account…" : "Create account"}
+          </Button>
+        </form>
 
         <p className="mt-4 flex items-start gap-1.5 text-xs leading-relaxed text-muted-foreground">
           <Check className="mt-0.5 size-3 shrink-0 text-success" />
