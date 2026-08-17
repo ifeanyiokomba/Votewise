@@ -49,8 +49,24 @@ async function loadProviderConfig(type: string): Promise<Record<string, string> 
     const config = await db.providerConfig.findFirst({
       where: { type, isActive: true },
     });
-    if (!config) return null;
-    return decryptJSON<Record<string, string>>(config.credentials);
+    if (!config) {
+      console.log(`[providers] No active ${type} config found in DB`);
+      return null;
+    }
+
+    const creds = decryptJSON<Record<string, string>>(config.credentials);
+
+    // If decryption failed (wrong key), creds will be empty
+    if (Object.keys(creds).length === 0) {
+      console.error(
+        `[providers] ${type} config found in DB but decryption FAILED. ` +
+          `The ENCRYPTION_KEY may have changed. Re-enter credentials in the Provider Management UI, ` +
+          `or set env vars as fallback.`
+      );
+      return null;
+    }
+
+    return creds;
   } catch (e) {
     console.error(`[providers] Failed to load ${type} config from DB:`, e);
     return null;
@@ -100,9 +116,7 @@ export async function getEmailProvider(): Promise<EmailProvider> {
 
   _emailProvider = provider;
   _lastCacheTime = Date.now();
-  if (process.env.NODE_ENV !== "production") {
-    console.log(`[providers] Email: ${provider.id}`);
-  }
+  console.log(`[providers] Email provider: ${provider.id} (configured: ${provider.isConfigured()})`);
   return provider;
 }
 
