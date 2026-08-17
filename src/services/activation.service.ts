@@ -2,6 +2,10 @@ import { db } from "@/lib/db";
 import { PricingService } from "./pricing.service";
 import { generateReference } from "@/lib/utils";
 import { NotificationService } from "./notification.service";
+import {
+  isPaystackConfigured,
+  initializeTransaction,
+} from "./paystack.service";
 
 const PLATFORM_ADMIN_EMAIL = process.env.PLATFORM_ADMIN_EMAIL ?? "admin@votewise.com.ng";
 const PLATFORM_PHONE = process.env.PLATFORM_PHONE ?? process.env.VOTEWISE_PLATFORM_PHONE ?? "+2348000000000";
@@ -34,12 +38,94 @@ export class ActivationService {
     });
   }
 
+  /**
+   * Initialize a payment for election activation.
+   *
+   * SECURITY (Finding #5): This method NO LONGER marks the payment as COMPLETED.
+   * Instead, it:
+   * 1. Creates an ElectionPayment record with status=PENDING
+   * 2. Initializes a Paystack transaction and returns the checkout URL
+   * 3. The client redirects to Paystack's hosted checkout
+   * 4. The webhook (/api/webhooks/paystack) verifies the payment and marks it COMPLETED
+   *
+   * If Paystack is not configured (dev mode), falls back to the old mock behavior
+   * so local development still works without a real gateway.
+   */
   static async pay(
     electionId: string,
-    organizationId: string
-  ): Promise<{ reference: string; amount: number; status: string }> {
+    organizationId: string,
+    customerEmail: string
+  ): Promise<{
+    reference: string;
+    amount: number;
+    status: string;
+    checkoutUrl?: string;
+    gateway: "paystack" | "mock";
+  }> {
     const activation = await this.getOrCreateForElection(electionId, organizationId);
     const reference = generateReference("ELE");
+
+    // Check for an existing pending payment for this activation (idempotency)
+    const existingPending = await db.electionPayment.findFirst({
+      where: { activationId: activation.id, status: "PENDING" },
+      orderBy: { createdAt: "desc" },
+    });
+
+    // ─── If Paystack is configured: real payment flow ───
+    if (isPaystackConfigured()) {
+      // Re-use existing pending payment's reference if available, else create new
+      const paymentRef = existingPending?.reference ?? reference;
+
+      if (!existingPending) {
+        await db.electionPayment.create({
+          data: {
+            activationId: activation.id,
+            amount: activation.calculatedAmount,
+            currency: activation.currency,
+            status: "PENDING",
+            reference: paymentRef,
+            provider: "paystack",
+          },
+        });
+      }
+
+      // Initialize Paystack transaction
+      // Paystack expects amount in kobo (smallest currency unit)
+      const amountInKobo = activation.calculatedAmount * 100;
+      const result = await initializeTransaction({
+        amount: amountInKobo,
+        currency: activation.currency,
+        reference: paymentRef,
+        email: customerEmail,
+        metadata: {
+          electionId,
+          organizationId,
+          activationId: activation.id,
+          custom_fields: [
+            { display_name: "Election", variable_name: "election", value: electionId },
+            { display_name: "Organization", variable_name: "organization", value: organizationId },
+          ],
+        },
+      });
+
+      // Update activation status to reflect pending payment
+      await db.commercialActivation.update({
+        where: { id: activation.id },
+        data: { status: "PAYMENT_PENDING" },
+      });
+
+      return {
+        reference: paymentRef,
+        amount: activation.calculatedAmount,
+        status: "PENDING",
+        checkoutUrl: result.data.authorization_url,
+        gateway: "paystack",
+      };
+    }
+
+    // ─── Mock flow (dev only — no real payment) ───
+    // SECURITY: This only runs when PAYSTACK_SECRET_KEY is not set.
+    // In production, the gateway must be configured.
     const payment = await db.electionPayment.create({
       data: {
         activationId: activation.id,
@@ -47,6 +133,7 @@ export class ActivationService {
         currency: activation.currency,
         status: "COMPLETED",
         reference,
+        provider: "mock",
         paidAt: new Date(),
       },
     });
@@ -58,7 +145,68 @@ export class ActivationService {
       reference: payment.reference,
       amount: payment.amount,
       status: payment.status,
+      gateway: "mock",
     };
+  }
+
+  /**
+   * Called by the Paystack webhook after a payment is verified.
+   * Marks the payment as COMPLETED and activates the election.
+   *
+   * SECURITY: This is the ONLY method that can mark a payment as COMPLETED
+   * for real Paystack payments. It's called exclusively from the webhook
+   * handler after HMAC + API verification.
+   */
+  static async confirmPayment(
+    reference: string,
+    gatewayReference: string,
+    gatewayResponse: string
+  ): Promise<{ confirmed: boolean; activationId?: string }> {
+    const payment = await db.electionPayment.findUnique({
+      where: { reference },
+      include: { activation: true },
+    });
+
+    if (!payment) {
+      return { confirmed: false };
+    }
+
+    // Already confirmed — idempotent
+    if (payment.status === "COMPLETED") {
+      return { confirmed: true, activationId: payment.activationId };
+    }
+
+    // Mark payment as completed with gateway details
+    await db.electionPayment.update({
+      where: { id: payment.id },
+      data: {
+        status: "COMPLETED",
+        gatewayReference,
+        gatewayResponse,
+        paidAt: new Date(),
+        verifiedAt: new Date(),
+      },
+    });
+
+    // Activate the election
+    await db.commercialActivation.update({
+      where: { id: payment.activationId },
+      data: { status: "PAYMENT_VERIFIED", activatedAt: new Date() },
+    });
+
+    // Transition election from DRAFT → READY
+    const election = await db.election.findUnique({
+      where: { id: payment.activation.electionId },
+      select: { status: true },
+    });
+    if (election && election.status === "DRAFT") {
+      await db.election.update({
+        where: { id: payment.activation.electionId },
+        data: { status: "READY" },
+      });
+    }
+
+    return { confirmed: true, activationId: payment.activationId };
   }
 
   static async requestNegotiation(

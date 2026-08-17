@@ -475,10 +475,16 @@ model ElectionPayment {
   paidAt       DateTime?
   createdAt    DateTime      @default(now())
 
+  // Paystack gateway fields — populated by the webhook after payment confirmation
+  gatewayReference String?   // Paystack's transaction reference (e.g. "ref123")
+  gatewayResponse  String?   // Raw gateway response JSON for audit
+  verifiedAt       DateTime? // When the webhook verified this payment
+
   activation CommercialActivation @relation(fields: [activationId], references: [id], onDelete: Cascade)
 
   @@index([reference])
   @@index([activationId])
+  @@index([gatewayReference])
 }
 
 model NegotiationRequest {

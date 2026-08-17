@@ -2266,3 +2266,139 @@ git push --force
 - `.env` — new SESSION_SECRET + ENCRYPTION_KEY + PLATFORM_* vars
 - `.env.example` — new file with all vars documented
 - `.gitignore` — hardened (secrets, db, agent tooling)
+
+---
+Task ID: AUDIT-ITEMS-2-4 (repo cleanup + election integrity + Paystack)
+Agent: Lead (orchestrator)
+Task: Carry out items 2-4 from the audit suggested order of work.
+
+## Item 2 — Repo Cleanup (Findings #7, #8, #18)
+
+### Git untracked sensitive files
+- `git rm -r --cached .env` — removed the leaked .env from git tracking
+- `git rm -r --cached db/custom.db db/custom.db-shm db/custom.db-wal` — removed SQLite DB files
+- `git rm -r --cached skills/` — removed 60+ agent skill directories (ASR, TTS, LLM, etc.)
+- `git rm -r --cached tool-results/` — removed raw tool output dumps
+- `git rm -r --cached agent-ctx/` — removed agent context files
+- `git rm --cached mini-services/scheduler-service/test*.ts` — removed temp test files
+
+### .gitignore hardened
+- `.env` and `.env.*` explicitly ignored (with `!.env.example` exception)
+- `*.db`, `*.db-*`, `db/` explicitly ignored
+- `/skills/`, `/tool-results/`, `/agent-ctx/` explicitly ignored
+- `*.log` files ignored
+
+### .env.example created (Finding #18)
+- Documents all env vars with placeholder values
+- Includes generation instructions for secrets (`openssl rand -hex 32`)
+- Documents Paystack vars, platform admin contact, and dev flags
+
+**NOTE**: The user still needs to commit these changes and force-push to GitHub.
+The leaked Neon password is still in the git history — rotating it at Neon is
+the only way to close that hole (deleting the file doesn't un-expose it).
+
+## Item 3 — Election Integrity (Findings #3, #4, #15)
+
+### #3 — Double voting enforcement
+- `VoteService.startSession()`: Added `hasVoted()` check before creating a session
+- `VoteService.castVotes()`: Added defense-in-depth `hasVoted()` re-check
+- Both throw `ConflictError("You have already cast your ballot for this election")`
+- The frontend `hasVoted()` check is now a courtesy, not the security boundary
+
+### #4 — Ballot secrecy (sessionId removed)
+- `prisma/schema.prisma`: Removed `sessionId` column from `Vote` model
+- Removed the `session` relation from `Vote` and `votes` from `VotingSession`
+- `VoteService.castVotes()`: No longer writes `sessionId` on Vote rows
+- The `anonymousToken` (random 32 bytes) is the ONLY link between a vote and a session
+- `bun run db:push` applied the schema change
+- **Decision made**: No operational need for ballot void/re-issue was identified,
+  so the simple fix (drop the column) is the right approach. If void/re-issue is
+  needed in the future, it should go through a separate, heavily-audited admin path.
+
+### #15 — maxChoices + duplicate-position validation
+- Added position selection tracking with duplicate detection
+- Enforces `Position.maxChoices` with clean `ConflictError` messages
+- Duplicate candidate per position → `ConflictError("Duplicate candidate selection...")`
+- Over maxChoices → `ConflictError("Position 'X' allows a maximum of N choice(s)...")`
+
+## Item 4 — Real Paystack Integration (Finding #5)
+
+### New: `src/services/paystack.service.ts`
+- `isPaystackConfigured()`: Checks if `PAYSTACK_SECRET_KEY` is set and starts with `sk_`
+- `initializeTransaction()`: Calls Paystack's `/transaction/initialize` API, returns checkout URL
+- `verifyTransaction()`: Calls Paystack's `/transaction/verify/:reference` API
+- `verifyWebhookSignature()`: HMAC-SHA512 verification with timing-safe comparison
+
+### Modified: `src/services/activation.service.ts`
+- `pay()`: Now takes `customerEmail` parameter
+  - If Paystack configured: creates PENDING payment, initializes Paystack transaction, returns `checkoutUrl`
+  - If Paystack NOT configured (dev): falls back to mock (instant completion)
+  - NEVER marks payment as COMPLETED for real Paystack payments — only the webhook does that
+- New: `confirmPayment()`: Called ONLY by the webhook after HMAC + API verification
+  - Marks payment as COMPLETED with gateway details
+  - Activates the election (CommercialActivation → PAYMENT_VERIFIED)
+  - Transitions election DRAFT → READY
+  - Idempotent (safe to call multiple times)
+
+### Modified: `src/app/api/elections/[id]/activation/pay/route.ts`
+- Passes `user.email` as customer email for Paystack
+- Returns `checkoutUrl` + `gateway` type in response
+
+### New: `src/app/api/webhooks/paystack/route.ts`
+- **POST**: Paystack webhook handler
+  1. Verifies HMAC-SHA512 signature using `PAYSTACK_SECRET_KEY`
+  2. Parses event, only handles `charge.success`
+  3. Independently verifies transaction via Paystack's verify API (don't trust webhook alone)
+  4. Verifies amount matches (prevents underpayment attacks)
+  5. Calls `ActivationService.confirmPayment()` to mark COMPLETED + activate
+  6. Logs to AuditLog
+- **GET**: Paystack return redirect
+  - Redirects user back to dashboard after checkout
+  - Actual confirmation happens via POST webhook
+
+### New: `src/app/api/webhooks/paystack/return/route.ts`
+- Handles Paystack's GET redirect after checkout
+- Redirects to `/dashboard?payment_status=processing&reference=XXX`
+
+### Modified: `src/app/dashboard/elections/[id]/activate/page.tsx`
+- `pay()` function now checks `gateway` type:
+  - If `paystack` + `checkoutUrl`: redirects to Paystack hosted checkout via `window.location.href`
+  - If `mock`: shows celebration dialog immediately (dev mode)
+- `PayResponse` type updated with `checkoutUrl` and `gateway` fields
+
+### Schema update
+- `ElectionPayment` model: Added `gatewayReference`, `gatewayResponse`, `verifiedAt` fields
+- New index on `gatewayReference` for webhook lookups
+- `bun run db:push` applied
+
+### Environment variables
+- `.env.example`: Documents `PAYSTACK_SECRET_KEY` and `PAYSTACK_PUBLIC_KEY`
+- `.env`: Has empty `PAYSTACK_SECRET_KEY=` and `PAYSTACK_PUBLIC_KEY=`
+- When not set, the payment flow falls back to mock mode (dev only)
+- In production, MUST be set to accept real payments
+
+### Security model
+```
+Client → POST /api/elections/:id/activation/pay
+  → ActivationService.pay()
+    → Creates ElectionPayment (status=PENDING)
+    → Calls Paystack initializeTransaction()
+    → Returns checkoutUrl to client
+  → Client redirects to Paystack hosted checkout
+  → User pays on Paystack
+  → Paystack → POST /api/webhooks/paystack
+    → verifyWebhookSignature() — HMAC-SHA512
+    → verifyTransaction() — independent API call
+    → Verify amount matches
+    → ActivationService.confirmPayment()
+      → Marks payment COMPLETED
+      → Activates election
+      → Election DRAFT → READY
+```
+
+The client-facing endpoint NEVER marks a payment as completed. Only the verified webhook can do that.
+
+## Verification
+- `bun run lint`: 0 errors, 0 warnings ✅
+- `bun run db:push`: Schema with gateway fields synced ✅
+- All services running ✅

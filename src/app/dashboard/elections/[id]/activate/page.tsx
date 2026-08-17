@@ -69,7 +69,13 @@ const STATUS_LABELS: Record<string, { label: string; tone: string }> = {
 };
 
 interface PayResponse {
-  payment: { reference: string; amount: number; status: string };
+  payment: {
+    reference: string;
+    amount: number;
+    status: string;
+    checkoutUrl?: string;
+    gateway: "paystack" | "mock";
+  };
 }
 
 export default function ActivatePage({
@@ -159,12 +165,26 @@ export default function ActivatePage({
       toast.error("Payment failed", { description: res.error?.message });
       return;
     }
+
+    const payment = res.data.payment;
+
+    // ─── Paystack flow: redirect to hosted checkout ───
+    if (payment.gateway === "paystack" && payment.checkoutUrl) {
+      toast.success("Redirecting to Paystack…", {
+        description: `Reference: ${payment.reference}`,
+      });
+      // Redirect to Paystack's hosted checkout page
+      window.location.href = payment.checkoutUrl;
+      return;
+    }
+
+    // ─── Mock flow (dev only): payment is instantly completed ───
     setPaymentResult({
-      reference: res.data.payment.reference,
-      amount: res.data.payment.amount,
+      reference: payment.reference,
+      amount: payment.amount,
     });
     toast.success("Payment received!", {
-      description: `Reference: ${res.data.payment.reference}`,
+      description: `Reference: ${payment.reference}`,
     });
     setShowCelebration(true);
     load();
