@@ -10,29 +10,45 @@ export class TermiiWhatsAppProvider implements WhatsAppProvider {
     this.creds = creds;
   }
 
+  /**
+   * Checks both DB-injected credentials AND env vars.
+   */
   isConfigured(): boolean {
-    return !!(this.creds.apiKey && this.creds.sender);
+    const apiKey = this.creds.apiKey || process.env.TERMII_API_KEY;
+    const sender = this.creds.sender || process.env.TERMII_WHATSAPP_SENDER;
+    return !!(apiKey && sender);
   }
 
   async send(params: {
     to: string;
     body: string;
   }): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    const apiKey = this.creds.apiKey || process.env.TERMII_API_KEY;
+    const sender = this.creds.sender || process.env.TERMII_WHATSAPP_SENDER;
+
+    if (!apiKey || !sender) {
+      return { success: false, error: "Termii WhatsApp not configured (need API key + sender)" };
+    }
+
     try {
       const to = params.to.replace(/^\+/, "");
       const response = await fetch("https://api.ng.termii.com/api/whatsapp/message", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          api_key: this.creds.apiKey,
-          sender: this.creds.sender,
+          api_key: apiKey,
+          sender,
           to,
           message: params.body,
           type: "text",
         }),
       });
 
-      if (!response.ok) return { success: false, error: `Termii WhatsApp error (${response.status})` };
+      if (!response.ok) {
+        const errorBody = await response.text();
+        console.error("[Termii WhatsApp] failed:", response.status, errorBody);
+        return { success: false, error: `Termii WhatsApp error (${response.status})` };
+      }
 
       const data = await response.json();
       if (data.code !== "ok") return { success: false, error: data.message ?? "WhatsApp failed" };

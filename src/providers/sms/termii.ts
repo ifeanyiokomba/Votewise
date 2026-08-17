@@ -10,8 +10,11 @@ export class TermiiSMSProvider implements SMSProvider {
     this.creds = creds;
   }
 
+  /**
+   * Checks both DB-injected credentials AND env vars.
+   */
   isConfigured(): boolean {
-    return !!this.creds.apiKey;
+    return !!(this.creds.apiKey || process.env.TERMII_API_KEY);
   }
 
   async send(params: {
@@ -19,22 +22,34 @@ export class TermiiSMSProvider implements SMSProvider {
     body: string;
     from?: string;
   }): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    const apiKey = this.creds.apiKey || process.env.TERMII_API_KEY;
+    const senderId = params.from ?? this.creds.senderId ?? process.env.TERMII_SENDER_ID ?? "Votewise";
+    const channel = this.creds.channel ?? process.env.TERMII_CHANNEL ?? "dnd";
+
+    if (!apiKey) {
+      return { success: false, error: "Termii API key not configured" };
+    }
+
     try {
       const to = params.to.replace(/^\+/, "");
       const response = await fetch("https://api.ng.termii.com/api/sms/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          api_key: this.creds.apiKey,
+          api_key: apiKey,
           to,
-          from: params.from ?? this.creds.senderId ?? "Votewise",
+          from: senderId,
           sms: params.body,
           type: "plain",
-          channel: this.creds.channel ?? "dnd",
+          channel,
         }),
       });
 
-      if (!response.ok) return { success: false, error: `Termii error (${response.status})` };
+      if (!response.ok) {
+        const errorBody = await response.text();
+        console.error("[Termii SMS] failed:", response.status, errorBody);
+        return { success: false, error: `Termii error (${response.status})` };
+      }
 
       const data = await response.json();
       if (data.code !== "ok") return { success: false, error: data.message ?? "Termii failed" };

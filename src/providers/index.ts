@@ -63,7 +63,6 @@ export async function getEmailProvider(): Promise<EmailProvider> {
   if (_emailProvider && !shouldRefreshCache()) return _emailProvider;
 
   const creds = await loadProviderConfig("EMAIL");
-  const providerId = creds?.["__provider"] ?? "mock";
 
   const providers: Record<string, EmailProvider> = {
     ses: new SESEmailProvider(),
@@ -71,16 +70,28 @@ export async function getEmailProvider(): Promise<EmailProvider> {
     mock: new MockEmailProvider(),
   };
 
-  let provider = providers[providerId] ?? providers.mock;
+  // Priority: DB config → env var (RESEND_API_KEY) → mock
+  let provider: EmailProvider;
 
-  if (creds) {
-    provider = providers[creds["__provider"] ?? providerId] ?? providers.mock;
-    // Inject credentials from DB
+  if (creds && creds["__provider"]) {
+    // DB-configured provider
+    provider = providers[creds["__provider"]] ?? providers.resend;
     provider.setCredentials?.(creds);
-  }
-
-  if (!provider.isConfigured() && providerId !== "mock") {
-    console.warn(`[providers] Email provider "${providerId}" not configured. Using mock.`);
+    if (!provider.isConfigured()) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn(`[providers] Email provider "${creds["__provider"]}" not configured. Falling back.`);
+      }
+      provider = providers.mock;
+    }
+  } else if (process.env.RESEND_API_KEY) {
+    // Env-var configured Resend (production default)
+    provider = providers.resend;
+    provider.setCredentials?.({
+      apiKey: process.env.RESEND_API_KEY,
+      fromEmail: process.env.RESEND_FROM_EMAIL,
+    });
+  } else {
+    // Mock (dev only)
     provider = providers.mock;
   }
 
@@ -101,14 +112,23 @@ export async function getSMSProvider(): Promise<SMSProvider> {
     mock: new MockSMSProvider(),
   };
 
-  let provider = providers.mock;
-  if (creds) {
-    const providerId = creds["__provider"] ?? "termii";
-    provider = providers[providerId] ?? providers.mock;
-    provider.setCredentials?.(creds);
-  }
+  // Priority: DB config → env var (TERMII_API_KEY) → mock
+  let provider: SMSProvider;
 
-  if (!provider.isConfigured() && provider.id !== "mock") {
+  if (creds && creds["__provider"]) {
+    provider = providers[creds["__provider"]] ?? providers.termii;
+    provider.setCredentials?.(creds);
+    if (!provider.isConfigured()) {
+      provider = providers.mock;
+    }
+  } else if (process.env.TERMII_API_KEY) {
+    provider = providers.termii;
+    provider.setCredentials?.({
+      apiKey: process.env.TERMII_API_KEY,
+      senderId: process.env.TERMII_SENDER_ID,
+      channel: process.env.TERMII_CHANNEL,
+    });
+  } else {
     provider = providers.mock;
   }
 
@@ -126,14 +146,22 @@ export async function getWhatsAppProvider(): Promise<WhatsAppProvider> {
     mock: new MockWhatsAppProvider(),
   };
 
-  let provider = providers.mock;
-  if (creds) {
-    const providerId = creds["__provider"] ?? "termii";
-    provider = providers[providerId] ?? providers.mock;
-    provider.setCredentials?.(creds);
-  }
+  // Priority: DB config → env var (TERMII_API_KEY + TERMII_WHATSAPP_SENDER) → mock
+  let provider: WhatsAppProvider;
 
-  if (!provider.isConfigured() && provider.id !== "mock") {
+  if (creds && creds["__provider"]) {
+    provider = providers[creds["__provider"]] ?? providers.termii;
+    provider.setCredentials?.(creds);
+    if (!provider.isConfigured()) {
+      provider = providers.mock;
+    }
+  } else if (process.env.TERMII_API_KEY && process.env.TERMII_WHATSAPP_SENDER) {
+    provider = providers.termii;
+    provider.setCredentials?.({
+      apiKey: process.env.TERMII_API_KEY,
+      sender: process.env.TERMII_WHATSAPP_SENDER,
+    });
+  } else {
     provider = providers.mock;
   }
 
