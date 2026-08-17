@@ -2402,3 +2402,51 @@ The client-facing endpoint NEVER marks a payment as completed. Only the verified
 - `bun run lint`: 0 errors, 0 warnings ✅
 - `bun run db:push`: Schema with gateway fields synced ✅
 - All services running ✅
+
+---
+Task ID: PLATFORM-ADMIN-ERROR-STATE-FIX
+Agent: Lead (orchestrator)
+Task: Apply platform-admin-dashboard-fix.patch — show real errors instead of infinite skeleton.
+
+## Root Cause
+When `/api/admin/platform-stats` fails (DB connection issue, env var missing, etc.),
+the `PlatformAdminDashboard` component was stuck in an infinite loading skeleton
+because it only set `data` on success — it never set an `error` state on failure.
+The API itself was already returning proper error JSON (via `handleError()` which
+logs to `console.error("[unhandled-error]", error)` and returns a 500 with the
+message), but the frontend silently discarded the error.
+
+## Fix Applied
+Applied the patch from `upload/platform-admin-dashboard-fix.patch`:
+
+1. **Added `ErrorState` import** from `@/components/dashboard/dashboard-skeleton`
+2. **Added `useCallback` to imports**
+3. **Added `error` state** + extracted `load` function as a `useCallback`
+4. **Three-state rendering**:
+   - `loading: true` → skeleton (same as before)
+   - `error` is set OR `!data` → `<ErrorState message={error} onRetry={load} />` (NEW)
+   - `data` is set → full dashboard (same as before)
+5. **Changed loading gate** from `if (loading || !data)` to `if (loading)` — so
+   the error state can render when loading is done but data is missing.
+
+Every successful-load path renders exactly as before. The only behavior that
+changes is what used to be an infinite blank skeleton now shows the real error
+message and a "Try again" button.
+
+## Likely Cause of the API Failure
+The user's audit report correctly identifies the most probable cause: if the
+Neon database password was rotated (as recommended in the audit) but the
+deployed app hasn't picked up the new `DATABASE_URL`, every DB-backed call
+fails. The fix makes this error visible on screen instead of hiding it behind
+a stuck skeleton.
+
+Other possible causes:
+- `SESSION_SECRET` not set in the deployed environment (now throws instead of
+  falling back to a hardcoded string — Finding #2 fix)
+- `ENCRYPTION_KEY` not set (same — throws if missing)
+
+## Verification
+- `bun run lint`: 0 errors, 0 warnings ✅
+- The fix matches the patch exactly — same three-state pattern used by the
+  org dashboard (`OrgDashboardContent`) right next to it.
+- API route already has `handleError()` which returns proper JSON errors.

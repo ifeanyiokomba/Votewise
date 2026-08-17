@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/shared/stat-card";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { ErrorState } from "@/components/dashboard/dashboard-skeleton";
 import { apiFetch } from "@/lib/api-fetch";
 import { cn, formatNumber, formatRelative, formatCurrency } from "@/lib/utils";
 import {
@@ -79,22 +80,30 @@ interface PlatformData {
 export function PlatformAdminDashboard({ userName }: { userName: string }) {
   const [data, setData] = useState<PlatformData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const res = await apiFetch<PlatformData>("/api/admin/platform-stats");
+    setLoading(false);
+    if (res.success && res.data) {
+      setData(res.data);
+    } else {
+      setError(res.error?.message ?? "Could not load platform stats");
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       if (cancelled) return;
-      const res = await apiFetch<PlatformData>("/api/admin/platform-stats");
-      if (cancelled) return;
-      setLoading(false);
-      if (res.success && res.data) {
-        setData(res.data);
-      }
+      await load();
     })();
     return () => { cancelled = false; };
-  }, []);
+  }, [load]);
 
-  if (loading || !data) {
+  if (loading) {
     return (
       <div className="flex-1 space-y-6 p-4 sm:p-6 lg:p-8">
         <Skeleton className="h-24 w-full rounded-2xl" />
@@ -107,6 +116,17 @@ export function PlatformAdminDashboard({ userName }: { userName: string }) {
           <Skeleton className="h-64" />
           <Skeleton className="h-64" />
         </div>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="flex-1 p-4 sm:p-6 lg:p-8">
+        <ErrorState
+          message={error ?? "Could not load platform data"}
+          onRetry={load}
+        />
       </div>
     );
   }
