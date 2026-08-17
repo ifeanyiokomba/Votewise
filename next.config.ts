@@ -1,16 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
-  // TEMPORARY: TypeScript errors are being fixed incrementally.
-  // The errors are all type-narrowing issues (union types, Prisma _count
-  // inference) that don't affect runtime behavior — the app works correctly.
-  // This flag will be removed once all type errors are resolved.
+  // NOTE: "output: standalone" removed — it causes ENOENT: next-server.js.nft.json
+  // on Vercel with Next.js 16 + Turbopack. Vercel handles output automatically.
   typescript: {
     ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
   },
   reactStrictMode: false,
 };
