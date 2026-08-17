@@ -77,9 +77,11 @@ type VotingSession = {
   anonymousToken?: string;
 };
 
-type VoteResponse =
-  | { session: VotingSession; ballot: Ballot }
-  | { alreadyVoted: true; session: null };
+type VoteResponse = {
+  session: VotingSession | null;
+  ballot?: Ballot;
+  alreadyVoted?: boolean;
+};
 
 type CastResponse = {
   receipt: string;

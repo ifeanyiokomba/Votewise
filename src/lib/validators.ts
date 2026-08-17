@@ -134,3 +134,5 @@ export type ElectionInput = z.infer<typeof electionSchema>;
 export type PositionInput = z.infer<typeof positionSchema>;
 export type CandidateInput = z.infer<typeof candidateSchema>;
 export type CastVoteInput = z.infer<typeof castVoteSchema>;
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;

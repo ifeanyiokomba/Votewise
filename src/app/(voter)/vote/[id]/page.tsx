@@ -117,15 +117,14 @@ const TEMPLATE_STYLES: Record<
   },
 };
 
-type VerifySendResponse =
-  | {
-      sent: boolean;
-      attemptsRemaining?: number;
-      voterId: string;
-      channel?: "EMAIL" | "SMS" | "WHATSAPP";
-      devCode?: string;
-    }
-  | { alreadyVoted: true; voterId: string };
+type VerifySendResponse = {
+  sent: boolean;
+  attemptsRemaining?: number;
+  voterId: string;
+  channel?: "EMAIL" | "SMS" | "WHATSAPP";
+  devCode?: string;
+  alreadyVoted?: boolean;
+};
 
 const FLOW_STEPS = [
   {

@@ -43,15 +43,14 @@ import { Label } from "@/components/ui/label";
 
 type Channel = "EMAIL" | "SMS" | "WHATSAPP";
 
-type SendResponse =
-  | {
-      sent: boolean;
-      attemptsRemaining?: number;
-      voterId: string;
-      channel?: Channel;
-      devCode?: string;
-    }
-  | { alreadyVoted: true; voterId: string };
+type SendResponse = {
+  sent: boolean;
+  attemptsRemaining?: number;
+  voterId: string;
+  channel?: Channel;
+  devCode?: string;
+  alreadyVoted?: boolean;
+};
 
 type VerifyResponse =
   | { verified: true; voterId: string }
