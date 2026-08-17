@@ -240,8 +240,13 @@ export class ActivationService {
       data: { status: "NEGOTIATION_REQUESTED" },
     });
     const standardPrice = activation.calculatedAmount;
-    const negotiation = await db.negotiationRequest.create({
-      data: {
+
+    // Use upsert instead of create — if a negotiation already exists for this
+    // activation (e.g. org admin re-requests after a previous one was declined),
+    // update it instead of throwing a unique constraint violation.
+    const negotiation = await db.negotiationRequest.upsert({
+      where: { activationId: activation.id },
+      create: {
         activationId: activation.id,
         organizationId,
         electionId,
@@ -254,6 +259,19 @@ export class ActivationService {
         contactPhone: input.contactPhone ?? null,
         preferredResponseChannel: input.preferredResponseChannel ?? null,
         message: input.message ?? null,
+      },
+      update: {
+        status: "REQUESTED",
+        voterCount: activation.voterCount,
+        standardPrice,
+        negotiatedAmount: input.proposedAmount ?? null,
+        contactName: input.contactName,
+        contactEmail: input.contactEmail,
+        contactPhone: input.contactPhone ?? null,
+        preferredResponseChannel: input.preferredResponseChannel ?? null,
+        message: input.message ?? null,
+        decidedAt: null,
+        internalNotes: null,
       },
     });
 
@@ -350,11 +368,10 @@ export class ActivationService {
         },
       });
 
-      // Transition election to READY (admin can then go LIVE)
-      // — but only if currently DRAFT
+      // Transition election to READY (from DRAFT) so it can be set LIVE
       const election = await db.election.findUnique({
         where: { id: updated.electionId },
-        select: { status: true },
+        select: { status: true, startTime: true, endTime: true },
       });
       if (election && election.status === "DRAFT") {
         await db.election.update({
@@ -362,6 +379,12 @@ export class ActivationService {
           data: { status: "READY" },
         });
       }
+
+      // Also reset the activation status on the CommercialActivation to
+      // PAYMENT_VERIFIED so the celebration window auto-opens on the
+      // org admin's Activate tab. MANUALLY_APPROVED is the internal status;
+      // the activate page checks for both MANUALLY_APPROVED and PAYMENT_VERIFIED.
+      // (The celebration auto-open logic already handles both — no change needed there.)
 
       // Notify the org admin that the election is activated
       try {
