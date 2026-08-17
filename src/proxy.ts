@@ -16,7 +16,7 @@ export function proxy(request: NextRequest) {
   // ─── Subdomain routing (string-only, no DB) ──────────────────────
   // unilag.votewise.com.ng → rewrite to /org/unilag
   // admin.votewise.com.ng → redirect to /login?admin=1
-  if (host !== MAIN_DOMAIN && host !== `www.${MAIN_DOMAIN}` && host !== "localhost:3000" && !host.startsWith("127.0.0.1") && !host.startsWith("21.0.13.")) {
+  if (host !== MAIN_DOMAIN && host !== `www.${MAIN_DOMAIN}` && host !== "localhost:3000" && !host.startsWith("127.0.0.1")) {
     // Admin subdomain
     if (host === `admin.${MAIN_DOMAIN}`) {
       const token = request.cookies.get(SESSION_COOKIE)?.value;

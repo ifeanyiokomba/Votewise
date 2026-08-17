@@ -60,7 +60,17 @@ server.log
 /skills/
 /tool-results/
 /agent-ctx/
+/.zscripts/
+/tests/
+/examples/
+/download/
+/upload/
 prompt
+worklog.md
+
+# Backups
+*.zbak
+*.bak
 
 # uploads (user-generated content)
 public/uploads/

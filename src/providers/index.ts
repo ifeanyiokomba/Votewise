@@ -86,7 +86,9 @@ export async function getEmailProvider(): Promise<EmailProvider> {
 
   _emailProvider = provider;
   _lastCacheTime = Date.now();
-  console.log(`[providers] Email: ${provider.id}`);
+  if (process.env.NODE_ENV !== "production") {
+    console.log(`[providers] Email: ${provider.id}`);
+  }
   return provider;
 }
 

@@ -13,7 +13,7 @@ export class MockEmailProvider implements EmailProvider {
     body: string;
     from?: string;
   }): Promise<{ success: boolean; messageId?: string; error?: string }> {
-    console.log(`\n📧 [MOCK EMAIL] To: ${params.to} | Subject: ${params.subject}\n  Body: ${params.body.slice(0, 150)}...\n`);
+    if (process.env.NODE_ENV !== "production") console.log("[MOCK EMAIL] sent (dev only)");
     return { success: true, messageId: `mock-${Date.now()}` };
   }
 }

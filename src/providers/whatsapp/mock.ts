@@ -11,7 +11,7 @@ export class MockWhatsAppProvider implements WhatsAppProvider {
     to: string;
     body: string;
   }): Promise<{ success: boolean; messageId?: string; error?: string }> {
-    console.log(`\n💬 [MOCK WHATSAPP] To: ${params.to} | Body: ${params.body.slice(0, 100)}\n`);
+    if (process.env.NODE_ENV !== "production") console.log("[MOCK WHATSAPP] sent (dev only)");
     return { success: true, messageId: `mock-wa-${Date.now()}` };
   }
 }

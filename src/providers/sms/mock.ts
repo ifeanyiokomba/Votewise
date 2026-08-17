@@ -12,7 +12,7 @@ export class MockSMSProvider implements SMSProvider {
     body: string;
     from?: string;
   }): Promise<{ success: boolean; messageId?: string; error?: string }> {
-    console.log(`\n📱 [MOCK SMS] To: ${params.to} | Body: ${params.body.slice(0, 100)}\n`);
+    if (process.env.NODE_ENV !== "production") console.log("[MOCK SMS] sent (dev only)");
     return { success: true, messageId: `mock-sms-${Date.now()}` };
   }
 }

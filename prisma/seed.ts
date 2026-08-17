@@ -14,7 +14,14 @@ async function main() {
   console.log("🌱 Seeding Votewise...");
 
   // ── Platform admin ──────────────────────────────────────────────
-  const adminPassword = await bcrypt.hash("Ntaokomba91615", 12);
+  // SECURITY: Password is sourced from env var — never hardcoded in production.
+  // For dev, falls back to a known value. In production, SEED_ADMIN_PASSWORD must be set.
+  const adminPwd = process.env.SEED_ADMIN_PASSWORD ?? "Ntaokomba91615";
+  if (process.env.NODE_ENV === "production" && !process.env.SEED_ADMIN_PASSWORD) {
+    console.error("❌ SEED_ADMIN_PASSWORD must be set in production.");
+    process.exit(1);
+  }
+  const adminPassword = await bcrypt.hash(adminPwd, 12);
   let admin = await db.user.findFirst({
     where: { email: "admin@votewise.com.ng", organizationId: null },
   });
@@ -31,7 +38,8 @@ async function main() {
   }
 
   // ── Demo organization + owner ──────────────────────────────────
-  const demoPassword = await bcrypt.hash("Demo@1234", 12);
+  const demoPwd = process.env.SEED_ORG_PASSWORD ?? "ChangeMe123!";
+  const demoPassword = await bcrypt.hash(demoPwd, 12);
   let demoUser = await db.user.findFirst({
     where: { email: "demo@votewise.com.ng", organizationId: null },
   });
@@ -266,8 +274,8 @@ async function main() {
   });
 
   console.log("✅ Seed complete.");
-  console.log("   Platform admin: admin@votewise.com.ng / Ntaokomba91615");
-  console.log("   Org owner:       demo@votewise.com.ng / Demo@1234");
+  console.log("   Platform admin: admin@votewise.com.ng (password from SEED_ADMIN_PASSWORD env var)");
+  console.log("   Org owner:       demo@votewise.com.ng (password from SEED_ORG_PASSWORD env var)");
   console.log("   Live election:   Student Union Government Elections 2025");
   console.log("   Voter sample:    voter1@unizik.edu.ng (lookup: UNIZIK/2020/1000)");
 }

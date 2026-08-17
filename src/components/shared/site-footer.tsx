@@ -108,15 +108,6 @@ export function SiteFooter() {
             <span className="font-medium text-foreground">Okomba Analytics.</span>
             <span className="ml-1">Built for organizations across Africa and beyond.</span>
           </p>
-          <p className="text-xs text-muted-foreground">
-            Demo credentials:{" "}
-            <Link
-              href="/login"
-              className="font-medium text-primary hover:underline"
-            >
-              admin@votewise.com.ng
-            </Link>
-          </p>
         </div>
       </div>
     </footer>

@@ -124,8 +124,14 @@ export class ActivationService {
     }
 
     // ─── Mock flow (dev only — no real payment) ───
-    // SECURITY: This only runs when PAYSTACK_SECRET_KEY is not set.
-    // In production, the gateway must be configured.
+    // SECURITY: This only runs when PAYSTACK_SECRET_KEY is not set AND
+    // we're not in production. In production, we throw — no free activations.
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "PAYSTACK_SECRET_KEY is not configured. Real payments cannot be processed. " +
+          "Set PAYSTACK_SECRET_KEY in your environment variables."
+      );
+    }
     const payment = await db.electionPayment.create({
       data: {
         activationId: activation.id,
