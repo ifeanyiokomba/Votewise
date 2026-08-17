@@ -51,6 +51,16 @@ import {
   ErrorState,
   StatCardSkeleton,
 } from "@/components/dashboard/dashboard-skeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { apiFetch } from "@/lib/api-fetch";
 import { toast } from "sonner";
 import { cn, formatCurrency, formatRelative } from "@/lib/utils";
@@ -113,6 +123,7 @@ export default function CommercialPage() {
   const [selected, setSelected] = useState<NegotiationDTO | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<"approve" | "decline" | null>(null);
   const [internalNotes, setInternalNotes] = useState("");
   const [assignedToId, setAssignedToId] = useState<string>("none");
   const [statusValue, setStatusValue] = useState<string>("");
@@ -177,7 +188,7 @@ export default function CommercialPage() {
     setSheetOpen(true);
   }
 
-  async function saveChanges() {
+  async function saveChanges(action?: "approve" | "decline" | "save") {
     if (!selected) return;
     setSaving(true);
     const body: Record<string, unknown> = { status: statusValue };
@@ -236,7 +247,21 @@ export default function CommercialPage() {
           }
         : prev
     );
-    toast.success("Negotiation updated");
+
+    // Contextual feedback based on the action
+    if (action === "approve") {
+      toast.success("Election activated!", {
+        description: `${selected.election?.name ?? "Election"} is now approved. The org admin has been notified by email.`,
+      });
+      setSheetOpen(false);
+    } else if (action === "decline") {
+      toast.success("Negotiation declined", {
+        description: `${selected.organization?.name ?? "Organization"} has been notified.`,
+      });
+      setSheetOpen(false);
+    } else {
+      toast.success("Negotiation updated");
+    }
   }
 
   // Platform-admin guard.
@@ -592,25 +617,20 @@ export default function CommercialPage() {
                 size="sm"
                 variant="default"
                 disabled={saving || !selected || selected.status === "APPROVED"}
-                onClick={() => {
-                  setStatusValue("APPROVED");
-                  setTimeout(() => saveChanges(), 50);
-                }}
+                onClick={() => setConfirmAction("approve")}
                 className="bg-emerald-600 hover:bg-emerald-700"
               >
-                <CheckCircle2 className="h-4 w-4" /> Approve &amp; Activate
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                {selected?.status === "APPROVED" ? "Already Approved" : "Approve & Activate"}
               </Button>
               <Button
                 size="sm"
                 variant="outline"
                 disabled={saving || !selected || selected.status === "DECLINED"}
-                onClick={() => {
-                  setStatusValue("DECLINED");
-                  setTimeout(() => saveChanges(), 50);
-                }}
+                onClick={() => setConfirmAction("decline")}
                 className="border-destructive/30 text-destructive hover:bg-destructive/5"
               >
-                <XCircle className="h-4 w-4" /> Decline
+                <XCircle className="h-4 w-4" /> {selected?.status === "DECLINED" ? "Already Declined" : "Decline"}
               </Button>
             </div>
             <div className="flex gap-2">
@@ -621,7 +641,7 @@ export default function CommercialPage() {
               >
                 Close
               </Button>
-              <Button onClick={saveChanges} disabled={saving || !selected}>
+              <Button onClick={() => saveChanges("save")} disabled={saving || !selected}>
                 {saving ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" /> Saving…
@@ -634,6 +654,86 @@ export default function CommercialPage() {
               </Button>
             </div>
           </SheetFooter>
+
+          {/* Confirmation dialog for approve/decline */}
+          <AlertDialog open={confirmAction !== null} onOpenChange={(o) => { if (!o) setConfirmAction(null); }}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2">
+                  {confirmAction === "approve" ? (
+                    <>
+                      <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                      Approve & activate this election?
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="h-5 w-5 text-destructive" />
+                      Decline this negotiation request?
+                    </>
+                  )}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  {confirmAction === "approve" ? (
+                    <>
+                      This will <strong>immediately activate</strong> the election
+                      {" "}<strong>{selected?.election?.name ?? ""}</strong> for{" "}
+                      <strong>{selected?.organization?.name ?? ""}</strong>. The
+                      organization admin will be notified by email, and they'll see a
+                      celebratory activation window with their voting link when they
+                      open the Activate tab.
+                      {selected?.negotiatedAmount != null && (
+                        <>
+                          {" "}The negotiated amount is{" "}
+                          <strong>{formatCurrency(selected.negotiatedAmount)}</strong>.
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      This will <strong>decline</strong> the negotiation request from{" "}
+                      <strong>{selected?.organization?.name ?? ""}</strong> for election{" "}
+                      <strong>{selected?.election?.name ?? ""}</strong>. They will need
+                      to submit a new request or use the standard payment flow.
+                    </>
+                  )}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={saving}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (confirmAction === "approve") {
+                      setStatusValue("APPROVED");
+                      setTimeout(() => saveChanges("approve"), 50);
+                    } else {
+                      setStatusValue("DECLINED");
+                      setTimeout(() => saveChanges("decline"), 50);
+                    }
+                    setConfirmAction(null);
+                  }}
+                  disabled={saving}
+                  className={confirmAction === "approve"
+                    ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                    : "bg-destructive text-destructive-foreground hover:bg-destructive/90"}
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" /> Processing…
+                    </>
+                  ) : confirmAction === "approve" ? (
+                    <>
+                      <CheckCircle2 className="h-4 w-4" /> Yes, approve & activate
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="h-4 w-4" /> Yes, decline
+                    </>
+                  )}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </SheetContent>
       </Sheet>
     </div>
