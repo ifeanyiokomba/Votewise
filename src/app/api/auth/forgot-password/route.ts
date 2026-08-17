@@ -12,8 +12,10 @@ export async function POST(request: Request) {
     const parsed = forgotPasswordSchema.parse(body);
 
     // Anti-enumeration: always return ok, regardless of whether user exists.
+    // Note: no organizationId filter — password reset works for ALL users
+    // (platform admins, org owners, org admins, members).
     const user = await db.user.findFirst({
-      where: { email: parsed.email, organizationId: null },
+      where: { email: parsed.email },
     });
 
     if (user) {

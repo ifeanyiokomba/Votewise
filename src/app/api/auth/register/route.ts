@@ -14,8 +14,9 @@ export async function POST(request: Request) {
     const body = await request.json();
     const parsed = registerSchema.parse(body);
 
+    // Check if email is already used by ANY user (not just orgless ones)
     const existing = await db.user.findFirst({
-      where: { email: parsed.email, organizationId: null },
+      where: { email: parsed.email },
     });
     if (existing) {
       throw new ConflictError("An account with this email already exists");
