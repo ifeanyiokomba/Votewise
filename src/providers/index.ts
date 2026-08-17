@@ -70,12 +70,12 @@ export async function getEmailProvider(): Promise<EmailProvider> {
     mock: new MockEmailProvider(),
   };
 
-  // Priority: DB config → env var (RESEND_API_KEY) → mock
+  // Priority: DB config → env var (AWS SES → Resend) → mock
   let provider: EmailProvider;
 
   if (creds && creds["__provider"]) {
     // DB-configured provider
-    provider = providers[creds["__provider"]] ?? providers.resend;
+    provider = providers[creds["__provider"]] ?? providers.ses;
     provider.setCredentials?.(creds);
     if (!provider.isConfigured()) {
       if (process.env.NODE_ENV !== "production") {
@@ -83,8 +83,11 @@ export async function getEmailProvider(): Promise<EmailProvider> {
       }
       provider = providers.mock;
     }
+  } else if (process.env.AWS_SES_ACCESS_KEY_ID && process.env.AWS_SES_SECRET_ACCESS_KEY) {
+    // Env-var configured AWS SES
+    provider = providers.ses;
   } else if (process.env.RESEND_API_KEY) {
-    // Env-var configured Resend (production default)
+    // Env-var configured Resend
     provider = providers.resend;
     provider.setCredentials?.({
       apiKey: process.env.RESEND_API_KEY,
