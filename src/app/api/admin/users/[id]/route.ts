@@ -75,7 +75,7 @@ export async function DELETE(_req: Request, { params }: Params) {
         name: "Deleted User",
         passwordHash: "removed",
         isActive: false,
-        mfaSecret: null,
+        // VW-007: mfaSecret removed (field no longer exists)
         passwordResetToken: null,
         passwordResetExpires: null,
       },

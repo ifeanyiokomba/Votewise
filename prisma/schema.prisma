@@ -220,8 +220,8 @@ model User {
   name                 String
   role                 Role      @default(VOTER)
   emailVerified        DateTime?
-  mfaEnabled           Boolean   @default(false)
-  mfaSecret            String?
+  // VW-007: mfaEnabled/mfaSecret removed — no MFA code paths exist.
+  // Re-add when full TOTP enrollment + verification is implemented.
   avatar               String?
   isActive             Boolean   @default(true)
   lastLoginAt          DateTime?
@@ -364,7 +364,13 @@ model VotingSession {
   id             String    @id @default(cuid())
   voterId        String
   electionId     String
-  anonymousToken String?   @unique
+  // SECURITY (VW-001): Store a ONE-WAY HASH of the anonymousToken, not the raw value.
+  // The Vote table stores the raw anonymousToken. By storing only SHA-256(token) here,
+  // a DB-level join `VotingSession JOIN Vote ON anonymousToken` becomes impossible —
+  // you can't reverse a hash to match the raw token in Vote.
+  // The app generates the raw token, uses it for the session lookup + vote creation,
+  // but never persists the raw value alongside voterId.
+  tokenHash      String?   @unique
   startedAt      DateTime  @default(now())
   completedAt    DateTime?
   ipAddress      String?
@@ -373,15 +379,10 @@ model VotingSession {
 
   voter    Voter    @relation(fields: [voterId], references: [id], onDelete: Cascade)
   election Election @relation(fields: [electionId], references: [id], onDelete: Cascade)
-  // NOTE: votes relation intentionally removed (Finding #4) — Vote no longer
-  // has sessionId, so there's no direct join from VotingSession to Vote.
 
   @@index([voterId, electionId])
   @@index([electionId])
   // SECURITY (F-15): Only one session per voter per election.
-  // This DB-level constraint prevents race conditions where two near-simultaneous
-  // requests could each create a session for the same voter. Combined with the
-  // hasVoted() check in VoteService, this makes double-voting impossible.
   @@unique([voterId, electionId])
 }
 

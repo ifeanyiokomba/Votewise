@@ -16,7 +16,15 @@ function normalizeRow(raw: Record<string, unknown>): VoterRow {
         (rk) => rk.trim().toLowerCase() === k.trim().toLowerCase()
       );
       const v = key ? raw[key] : undefined;
-      if (v != null && String(v).trim()) return String(v).trim();
+      if (v != null && String(v).trim()) {
+        let val = String(v).trim();
+        // SECURITY (VW-009): Sanitize formula-injection payloads.
+        // Cells starting with =, +, -, @, or tab can execute formulas in Excel/Sheets.
+        if (/^[=+\-@\t\r]/.test(val)) {
+          val = `'${val}`; // Prepend single quote to neutralize
+        }
+        return val;
+      }
     }
     return undefined;
   };

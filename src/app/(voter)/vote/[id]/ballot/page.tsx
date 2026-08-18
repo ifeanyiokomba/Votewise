@@ -304,6 +304,7 @@ function BallotInner() {
         voterId,
         electionId,
         sessionId: session.id,
+        anonymousToken: session.anonymousToken,
         votes,
       }),
     });

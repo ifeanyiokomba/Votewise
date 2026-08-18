@@ -13,13 +13,18 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const parsed = castVoteSchema.parse(body);
-    const { voterId } = body as { voterId: string };
+    const { voterId, anonymousToken } = body as { voterId: string; anonymousToken?: string };
+
+    if (!anonymousToken) {
+      return fail("Session token is required to cast a vote.", "NO_TOKEN", 400);
+    }
 
     const result = await VoteService.castVotes(
       voterId,
       parsed.electionId,
       parsed.sessionId,
-      parsed.votes
+      parsed.votes,
+      anonymousToken,
     );
 
     return ok({ receipt: result.receipt, count: result.count });
