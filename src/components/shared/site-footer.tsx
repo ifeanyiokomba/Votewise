@@ -53,7 +53,7 @@ const SOCIAL = [
   { label: "LinkedIn", href: "https://www.linkedin.com/in/okombaifeanyi", Icon: Linkedin },
   { label: "Facebook", href: "https://web.facebook.com/okombaifeanyi", Icon: Facebook },
   { label: "GitHub", href: "https://github.com/ifeanyiokomba/", Icon: Github },
-  { label: "Email", href: "/support", Icon: Mail },
+  { label: "Email", href: "mailto:support@votewise.com.ng", Icon: Mail },
 ];
 
 export function SiteFooter() {
@@ -73,6 +73,7 @@ export function SiteFooter() {
                   key={label}
                   href={href}
                   aria-label={label}
+                  {...(href.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                   className="grid h-9 w-9 place-items-center rounded-lg border border-border/60 bg-background text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <Icon className="h-4 w-4" />

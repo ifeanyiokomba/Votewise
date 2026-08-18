@@ -36,6 +36,7 @@ import { Logo } from "@/components/shared/logo";
 import { Reveal } from "@/components/shared/reveal";
 import { SiteHeader } from "@/components/shared/site-header";
 import { SiteFooter } from "@/components/shared/site-footer";
+import { CandidateResultsBoard } from "@/components/shared/candidate-results-board";
 import { SecurityBackground, DataFlowParticles, VoteCountingAnimation, CountUpNumber } from "@/components/shared/animated-backgrounds";
 import { SUBSCRIPTION_PLANS, APP_NAME } from "@/lib/constants";
 import { formatCurrency, formatNumber, cn } from "@/lib/utils";
@@ -186,10 +187,10 @@ const MONITORING_TILES = [
 const MONITORING_BARS = [42, 58, 49, 66, 60, 74, 70, 83, 77, 90, 86, 95];
 
 const RESULTS = [
-  { name: "Adebayo Okafor", pct: 42, color: "bg-primary" },
-  { name: "Chinwe Eze", pct: 31, color: "bg-chart-3" },
-  { name: "Ibrahim Bello", pct: 18, color: "bg-chart-4" },
-  { name: "Ngozi Obi", pct: 9, color: "bg-muted-foreground/40" },
+  { id: "1", name: "Adebayo Okafor", pct: 42, votes: 1768, position: "President" },
+  { id: "2", name: "Chinwe Eze", pct: 31, votes: 1305, position: "President" },
+  { id: "3", name: "Ibrahim Bello", pct: 18, votes: 758, position: "President" },
+  { id: "4", name: "Ngozi Obi", pct: 9, votes: 379, position: "President" },
 ];
 
 const TESTIMONIALS = [
@@ -813,31 +814,19 @@ function ResultsCard({ total }: { total: number }) {
           <StatusBadge status="PUBLISHED" />
         </div>
 
-        <div className="mt-5 space-y-4">
-          {RESULTS.map((c, i) => (
-            <div key={c.name}>
-              <div className="mb-1.5 flex items-center justify-between text-sm">
-                <span className="flex items-center gap-2 font-medium">
-                  <span className="grid h-5 w-5 place-items-center rounded-md bg-muted text-[10px] font-bold tabular-nums text-muted-foreground">
-                    {i + 1}
-                  </span>
-                  {c.name}
-                </span>
-                <span className="tabular-nums text-muted-foreground">
-                  {c.pct}% ·{" "}
-                  <span className="font-medium text-foreground">
-                    {formatNumber(Math.round((c.pct / 100) * total))}
-                  </span>
-                </span>
-              </div>
-              <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
-                <div
-                  className={cn("h-full rounded-full transition-all", c.color)}
-                  style={{ width: `${c.pct}%` }}
-                />
-              </div>
-            </div>
-          ))}
+        <div className="mt-5">
+          <CandidateResultsBoard
+            candidates={RESULTS.map((c) => ({
+              id: c.id,
+              name: c.name,
+              position: c.position,
+              voteCount: c.votes,
+              percentage: c.pct,
+            }))}
+            showLiveResults={false}
+            totalVotes={total}
+            totalVoters={total}
+          />
         </div>
 
         <div className="mt-5 flex items-center justify-between rounded-xl border border-border/60 bg-muted/30 p-3 text-xs">
