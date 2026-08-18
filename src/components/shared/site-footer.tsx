@@ -49,10 +49,10 @@ const COLUMNS: FooterColumn[] = [
 ];
 
 const SOCIAL = [
-  { label: "X (Twitter)", href: "#", Icon: Twitter },
-  { label: "LinkedIn", href: "#", Icon: Linkedin },
-  { label: "Facebook", href: "#", Icon: Facebook },
-  { label: "GitHub", href: "#", Icon: Github },
+  { label: "X (Twitter)", href: "https://x.com/okombaifeany", Icon: Twitter },
+  { label: "LinkedIn", href: "https://www.linkedin.com/in/okombaifeanyi", Icon: Linkedin },
+  { label: "Facebook", href: "https://web.facebook.com/okombaifeanyi", Icon: Facebook },
+  { label: "GitHub", href: "https://github.com/ifeanyiokomba/", Icon: Github },
   { label: "Email", href: "/support", Icon: Mail },
 ];
 
