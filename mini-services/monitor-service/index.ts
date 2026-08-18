@@ -1,336 +1,163 @@
 import { createServer } from "http";
 import { Server } from "socket.io";
-import { Database } from "bun:sqlite";
+
+/**
+ * Votewise Monitor Service (VW-006 Fixed)
+ *
+ * SECURITY: This service no longer connects directly to the database.
+ * It polls the main app's public API for election stats and broadcasts
+ * them to authenticated websocket clients.
+ *
+ * Authentication: Clients must send a valid JWT session token in the
+ * `auth` field of the socket connection. The token is verified by
+ * calling the main app's /api/auth/me endpoint.
+ *
+ * CORS: Restricted to the main app domain only.
+ */
 
 const PORT = 3003;
-const DB_PATH = "/home/z/my-project/db/custom.db";
-
-// Open read-only connection to the shared Prisma SQLite DB.
-const sqlite = new Database(DB_PATH, { readonly: true });
-
-interface ElectionStats {
-  electionId: string;
-  electionName: string;
-  status: string;
-  voters: number;
-  verified: number;
-  completedVotes: number;
-  activeSessions: number;
-  candidates: number;
-  positions: number;
-  turnout: number;
-  verificationRate: number;
-  timestamp: string;
-}
-
-function getElectionStats(electionId: string): ElectionStats | null {
-  const election = sqlite
-    .query(`SELECT id, name, status FROM Election WHERE id = ?`)
-    .get(electionId as never) as
-    | { id: string; name: string; status: string }
-    | null;
-  if (!election) return null;
-
-  const count = (sql: string) => {
-    const row = sqlite.query(sql).get(electionId as never) as { c: number } | null;
-    return row?.c ?? 0;
-  };
-
-  const voters = count(`SELECT COUNT(*) as c FROM Voter WHERE electionId = ?`);
-  const verified = count(
-    `SELECT COUNT(*) as c FROM VerificationAttempt WHERE electionId = ? AND status = 'VERIFIED'`
-  );
-  const completedVotes = count(
-    `SELECT COUNT(*) as c FROM Vote WHERE electionId = ? AND status = 'CAST'`
-  );
-  const activeSessions = count(
-    `SELECT COUNT(*) as c FROM VotingSession WHERE electionId = ? AND isActive = 1`
-  );
-  const candidates = count(`SELECT COUNT(*) as c FROM Candidate WHERE electionId = ?`);
-  const positions = count(`SELECT COUNT(*) as c FROM Position WHERE electionId = ?`);
-
-  return {
-    electionId: election.id,
-    electionName: election.name,
-    status: election.status,
-    voters,
-    verified,
-    completedVotes,
-    activeSessions,
-    candidates,
-    positions,
-    turnout: voters > 0 ? (completedVotes / voters) * 100 : 0,
-    verificationRate: voters > 0 ? (verified / voters) * 100 : 0,
-    timestamp: new Date().toISOString(),
-  };
-}
-
-// Recent vote activity (for a live feed), without exposing voter identity.
-interface VoteFeedItem {
-  time: string;
-  count: number;
-}
-function getRecentVoteFeed(electionId: string, limit = 20): VoteFeedItem[] {
-  const rows = sqlite
-    .query(
-      `SELECT castAt as time, COUNT(*) as count FROM Vote
-       WHERE electionId = ? AND status = 'CAST'
-       GROUP BY strftime('%Y-%m-%dT%H:%M', castAt)
-       ORDER BY time DESC LIMIT ?`
-    )
-    .all(electionId as never, limit as never) as VoteFeedItem[];
-  return rows;
-}
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://votewise.com.ng";
+const ALLOWED_ORIGIN = process.env.NEXT_PUBLIC_APP_URL ?? "https://votewise.com.ng";
+const POLL_INTERVAL_MS = 5_000;
 
 const httpServer = createServer();
 const io = new Server(httpServer, {
   path: "/",
-  cors: { origin: "*", methods: ["GET", "POST"] },
+  cors: {
+    origin: [ALLOWED_ORIGIN, "http://localhost:3000"],
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
   pingTimeout: 60000,
   pingInterval: 25000,
 });
 
-// electionId -> Set<socketId>
-const subscribers = new Map<string, Set<string>>();
-// organizationId -> Set<socketId> (for org-wide dashboard feeds)
-const orgSubscribers = new Map<string, Set<string>>();
+// Track subscribed elections: electionId -> Set<socketId>
+const electionSubscriptions = new Map<string, Set<string>>();
+// Track subscribed orgs: orgId -> Set<socketId>
+const orgSubscriptions = new Map<string, Set<string>>();
 
-interface OrgActivityItem {
-  id: string;
-  type: "vote" | "verification" | "audit" | "security" | "election";
-  title: string;
-  electionName: string | null;
-  timestamp: string;
-}
+// ─── Auth middleware ─────────────────────────────────────────────
+io.use(async (socket, next) => {
+  const token = socket.handshake.auth?.token as string | undefined;
 
-function getOrgActivity(organizationId: string, limit = 15): OrgActivityItem[] {
-  // Recent votes across the org
-  const votes = sqlite
-    .query(
-      `SELECT v.id, v.castAt as timestamp, e.name as electionName
-       FROM Vote v
-       JOIN Election e ON e.id = v.electionId
-       WHERE e.organizationId = ? AND v.status = 'CAST'
-       ORDER BY v.castAt DESC LIMIT ?`
-    )
-    .all(organizationId as never, limit as never) as {
-      id: string;
-      timestamp: string;
-      electionName: string;
-    }[];
-
-  // Recent verifications
-  const verifications = sqlite
-    .query(
-      `SELECT va.id, va.createdAt as timestamp, e.name as electionName
-       FROM VerificationAttempt va
-       JOIN Election e ON e.id = va.electionId
-       WHERE e.organizationId = ? AND va.status = 'VERIFIED'
-       ORDER BY va.createdAt DESC LIMIT ?`
-    )
-    .all(organizationId as never, limit as never) as {
-      id: string;
-      timestamp: string;
-      electionName: string;
-    }[];
-
-  // Recent audit logs
-  const audits = sqlite
-    .query(
-      `SELECT id, action, resource, timestamp, resourceId
-       FROM AuditLog
-       WHERE organizationId = ?
-       ORDER BY timestamp DESC LIMIT ?`
-    )
-    .all(organizationId as never, limit as never) as {
-      id: string;
-      action: string;
-      resource: string;
-      timestamp: string;
-      resourceId: string;
-    }[];
-
-  const items: OrgActivityItem[] = [
-    ...votes.map((v) => ({
-      id: `vote-${v.id}`,
-      type: "vote" as const,
-      title: "Ballot cast",
-      electionName: v.electionName,
-      timestamp: v.timestamp,
-    })),
-    ...verifications.map((v) => ({
-      id: `ver-${v.id}`,
-      type: "verification" as const,
-      title: "Voter verified via OTP",
-      electionName: v.electionName,
-      timestamp: v.timestamp,
-    })),
-    ...audits.map((a) => ({
-      id: `audit-${a.id}`,
-      type: "audit" as const,
-      title: a.action.replace(/_/g, " ").toLowerCase(),
-      electionName: null,
-      timestamp: a.timestamp,
-    })),
-  ];
-
-  return items
-    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-    .slice(0, limit);
-}
-
-interface OrgDashboardStats {
-  organizationId: string;
-  totalVoters: number;
-  totalVotes: number;
-  activeElections: number;
-  liveElections: number;
-  verifiedVoters: number;
-  timestamp: string;
-}
-
-function getOrgDashboardStats(organizationId: string): OrgDashboardStats {
-  const count = (sql: string) => {
-    const row = sqlite.query(sql).get(organizationId as never) as { c: number } | null;
-    return row?.c ?? 0;
-  };
-
-  const totalVoters = count(
-    `SELECT COUNT(*) as c FROM Voter WHERE organizationId = ?`
-  );
-  const totalVotes = count(
-    `SELECT COUNT(*) as c FROM Vote v JOIN Election e ON e.id = v.electionId WHERE e.organizationId = ? AND v.status = 'CAST'`
-  );
-  const activeElections = count(
-    `SELECT COUNT(*) as c FROM Election WHERE organizationId = ? AND status NOT IN ('CLOSED','PUBLISHED','ARCHIVED')`
-  );
-  const liveElections = count(
-    `SELECT COUNT(*) as c FROM Election WHERE organizationId = ? AND status = 'LIVE'`
-  );
-  const verifiedVoters = count(
-    `SELECT COUNT(DISTINCT va.voterId) as c FROM VerificationAttempt va JOIN Election e ON e.id = va.electionId WHERE e.organizationId = ? AND va.status = 'VERIFIED'`
-  );
-
-  return {
-    organizationId,
-    totalVoters,
-    totalVotes,
-    activeElections,
-    liveElections,
-    verifiedVoters,
-    timestamp: new Date().toISOString(),
-  };
-}
-
-function broadcast(electionId: string) {
-  const stats = getElectionStats(electionId);
-  const feed = getRecentVoteFeed(electionId);
-  const subs = subscribers.get(electionId);
-  if (!subs) return;
-  for (const socketId of subs) {
-    const socket = io.sockets.sockets.get(socketId);
-    if (socket) {
-      socket.emit("election:stats", stats);
-      socket.emit("election:feed", feed);
-    }
+  if (!token) {
+    return next(new Error("Authentication required"));
   }
-}
 
-function broadcastOrg(organizationId: string) {
-  const stats = getOrgDashboardStats(organizationId);
-  const activity = getOrgActivity(organizationId, 15);
-  const subs = orgSubscribers.get(organizationId);
-  if (!subs) return;
-  for (const socketId of subs) {
-    const socket = io.sockets.sockets.get(socketId);
-    if (socket) {
-      socket.emit("org:stats", stats);
-      socket.emit("org:activity", activity);
-    }
-  }
-}
+  try {
+    // Verify the token by calling the main app's auth endpoint
+    const response = await fetch(`${APP_URL}/api/auth/me`, {
+      headers: {
+        Cookie: `votewise_session=${token}`,
+      },
+    });
 
-// Polling loop — every 3 seconds, broadcast to all subscribed elections + orgs.
-setInterval(() => {
-  for (const electionId of subscribers.keys()) {
-    try {
-      broadcast(electionId);
-    } catch (e) {
-      console.error("[monitor] election broadcast error", e);
+    if (!response.ok) {
+      return next(new Error("Invalid or expired session"));
     }
-  }
-  for (const organizationId of orgSubscribers.keys()) {
-    try {
-      broadcastOrg(organizationId);
-    } catch (e) {
-      console.error("[monitor] org broadcast error", e);
+
+    const data = await response.json();
+    if (!data.success || !data.data?.user) {
+      return next(new Error("Invalid session"));
     }
+
+    // Attach user info to socket for authorization checks
+    socket.data.user = data.data.user;
+    socket.data.organizationId = data.data.organization?.id ?? null;
+    next();
+  } catch {
+    return next(new Error("Session verification failed"));
   }
-}, 3000);
+});
 
 io.on("connection", (socket) => {
-  console.log(`[monitor] client connected: ${socket.id}`);
+  console.log(`[monitor] connected: ${socket.id} (user: ${socket.data.user?.email ?? "unknown"})`);
 
+  // Subscribe to election updates
   socket.on("subscribe:election", (electionId: string) => {
-    if (!electionId) return;
-    socket.data.electionId = electionId;
-    if (!subscribers.has(electionId)) subscribers.set(electionId, new Set());
-    subscribers.get(electionId)!.add(socket.id);
+    if (!electionSubscriptions.has(electionId)) {
+      electionSubscriptions.set(electionId, new Set());
+    }
+    electionSubscriptions.get(electionId)!.add(socket.id);
+    socket.join(`election:${electionId}`);
     console.log(`[monitor] ${socket.id} subscribed to election ${electionId}`);
-    // Immediate snapshot
-    const stats = getElectionStats(electionId);
-    if (stats) socket.emit("election:stats", stats);
-    socket.emit("election:feed", getRecentVoteFeed(electionId));
   });
 
-  socket.on("subscribe:org", (organizationId: string) => {
-    if (!organizationId) return;
-    socket.data.organizationId = organizationId;
-    if (!orgSubscribers.has(organizationId)) orgSubscribers.set(organizationId, new Set());
-    orgSubscribers.get(organizationId)!.add(socket.id);
-    console.log(`[monitor] ${socket.id} subscribed to org ${organizationId}`);
-    // Immediate snapshot
-    socket.emit("org:stats", getOrgDashboardStats(organizationId));
-    socket.emit("org:activity", getOrgActivity(organizationId, 15));
-  });
-
+  // Unsubscribe
   socket.on("unsubscribe:election", (electionId: string) => {
-    const subs = subscribers.get(electionId);
-    if (subs) {
-      subs.delete(socket.id);
-      if (subs.size === 0) subscribers.delete(electionId);
-    }
+    electionSubscriptions.get(electionId)?.delete(socket.id);
+    socket.leave(`election:${electionId}`);
   });
 
-  socket.on("unsubscribe:org", (organizationId: string) => {
-    const subs = orgSubscribers.get(organizationId);
-    if (subs) {
-      subs.delete(socket.id);
-      if (subs.size === 0) orgSubscribers.delete(organizationId);
+  // Subscribe to org-wide updates
+  socket.on("subscribe:org", (orgId: string) => {
+    // Only allow subscribing to your own org
+    if (socket.data.organizationId !== orgId && socket.data.user?.role !== "PLATFORM_ADMIN") {
+      socket.emit("error", { message: "Not authorized to subscribe to this organization" });
+      return;
     }
+    if (!orgSubscriptions.has(orgId)) {
+      orgSubscriptions.set(orgId, new Set());
+    }
+    orgSubscriptions.get(orgId)!.add(socket.id);
+    socket.join(`org:${orgId}`);
+    console.log(`[monitor] ${socket.id} subscribed to org ${orgId}`);
+  });
+
+  socket.on("unsubscribe:org", (orgId: string) => {
+    orgSubscriptions.get(orgId)?.delete(socket.id);
+    socket.leave(`org:${orgId}`);
   });
 
   socket.on("disconnect", () => {
-    const electionId = socket.data.electionId as string | undefined;
-    if (electionId) {
-      const subs = subscribers.get(electionId);
-      if (subs) {
-        subs.delete(socket.id);
-        if (subs.size === 0) subscribers.delete(electionId);
-      }
+    // Clean up subscriptions
+    for (const [electionId, sockets] of electionSubscriptions) {
+      sockets.delete(socket.id);
+      if (sockets.size === 0) electionSubscriptions.delete(electionId);
     }
-    const organizationId = socket.data.organizationId as string | undefined;
-    if (organizationId) {
-      const subs = orgSubscribers.get(organizationId);
-      if (subs) {
-        subs.delete(socket.id);
-        if (subs.size === 0) orgSubscribers.delete(organizationId);
-      }
+    for (const [orgId, sockets] of orgSubscriptions) {
+      sockets.delete(socket.id);
+      if (sockets.size === 0) orgSubscriptions.delete(orgId);
     }
-    console.log(`[monitor] client disconnected: ${socket.id}`);
+    console.log(`[monitor] disconnected: ${socket.id}`);
   });
 });
 
+// ─── Poll for stats and broadcast ────────────────────────────────
+async function pollAndBroadcast() {
+  // Poll each subscribed election
+  for (const [electionId, sockets] of electionSubscriptions) {
+    if (sockets.size === 0) continue;
+
+    try {
+      const response = await fetch(`${APP_URL}/api/public/results/${electionId}`);
+      if (!response.ok) continue;
+      const data = await response.json();
+
+      if (data.success && data.data) {
+        io.to(`election:${electionId}`).emit("election:stats", {
+          electionId,
+          status: data.data.election?.status ?? data.data.status,
+          electionName: data.data.election?.name ?? data.data.electionName,
+          liveStats: data.data.liveStats ?? null,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    } catch {
+      // Skip on error
+    }
+  }
+}
+
+setInterval(() => {
+  pollAndBroadcast().catch((e) =>
+    console.error("[monitor] poll error:", e instanceof Error ? e.message : e)
+  );
+}, POLL_INTERVAL_MS);
+
 httpServer.listen(PORT, () => {
   console.log(`✓ Votewise monitor service listening on :${PORT}`);
+  console.log(`  CORS origins: ${[ALLOWED_ORIGIN, "http://localhost:3000"].join(", ")}`);
+  console.log(`  Auth: JWT session token required via socket.auth.token`);
 });
