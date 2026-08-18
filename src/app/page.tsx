@@ -358,7 +358,7 @@ function Hero() {
 
 function HeroPreviewCard() {
   return (
-    <div className="relative">
+    <div className="relative w-full overflow-hidden">
       <div
         aria-hidden
         className="absolute -inset-6 -z-10 rounded-3xl bg-primary/10 blur-3xl animate-vw-float-slow"

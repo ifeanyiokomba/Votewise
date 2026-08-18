@@ -64,7 +64,19 @@ function LoginForm() {
   React.useEffect(() => {
     const errParam = searchParams.get("error");
     if (errParam) {
-      setError("Sign-in error. Please try again.");
+      const messages: Record<string, string> = {
+        google_not_configured: "Google sign-in is not configured. Use email/password instead.",
+        google_auth_cancelled: "Google sign-in was cancelled.",
+        google_auth_failed: "Google authentication failed. Please try again.",
+        google_token_failed: "Could not retrieve Google access token. Please try again.",
+        google_profile_failed: "Could not retrieve your Google profile.",
+        google_no_email: "Your Google account has no email address.",
+        google_admin_blocked: "Google sign-in is not available for admin accounts.",
+        google_callback_error: "An error occurred during Google sign-in.",
+        google_redirect_uri_mismatch: "Google redirect URI mismatch. Contact support.",
+        google_access_denied: "Google access was denied.",
+      };
+      setError(messages[errParam] ?? "Sign-in error. Please try again.");
     }
   }, [searchParams]);
 
