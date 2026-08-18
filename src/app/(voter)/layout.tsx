@@ -39,7 +39,9 @@ export default function VoterLayout({
           </Link>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <ShieldCheck className="size-3.5 text-primary" />
-            <span>Secure election platform · By Votewise, built by Okomba Analytics</span>
+            <span>Secure election platform · By Votewise, built by{" "}
+              <a href="https://okomba.com" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">Okomba Analytics</a>
+            </span>
           </div>
         </div>
       </header>
@@ -51,7 +53,8 @@ export default function VoterLayout({
       <footer className="mt-auto border-t border-border/60 bg-secondary/30">
         <div className="mx-auto flex max-w-2xl flex-col items-center justify-between gap-2 px-4 py-5 text-center text-xs text-muted-foreground sm:flex-row sm:px-6 sm:text-left">
           <p>
-            &copy; {new Date().getFullYear()} {APP_NAME} — A product of Okomba Analytics.
+            &copy; {new Date().getFullYear()} {APP_NAME} — A product of{" "}
+              <a href="https://okomba.com" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">Okomba Analytics</a>.
           </p>
           <p className="flex items-center gap-1.5">
             <ShieldCheck className="size-3.5 text-primary" />

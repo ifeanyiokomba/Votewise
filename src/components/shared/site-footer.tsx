@@ -105,7 +105,7 @@ export function SiteFooter() {
         <div className="mt-12 flex flex-col items-start justify-between gap-4 border-t border-border/60 pt-6 sm:flex-row sm:items-center">
           <p className="text-xs text-muted-foreground">
             &copy; {new Date().getFullYear()} Votewise — A product of{" "}
-            <span className="font-medium text-foreground">Okomba Analytics.</span>
+            <a href="https://okomba.com" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">Okomba Analytics</a>.
             <span className="ml-1">Built for organizations across Africa and beyond.</span>
           </p>
         </div>

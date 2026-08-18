@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Logo } from "@/components/shared/logo";
 import { SupportChatWidget } from "@/components/shared/support-chat-widget";
+import { CandidateResultsBoard } from "@/components/shared/candidate-results-board";
 import {
   ShieldCheck,
   Vote,
@@ -252,44 +253,28 @@ export default function OrgHomePage() {
                     {/* Candidate headshots + live results (if enabled) */}
                     <CardContent className="p-5">
                       {election.showLiveResults ? (
-                        /* ─── Live results with percentages ─── */
+                        /* ─── Live results with futuristic CandidateResultsBoard ─── */
                         <div className="space-y-6">
-                          <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-800 dark:bg-emerald-950/20">
-                            <BarChart3 className="h-4 w-4 text-emerald-600" />
-                            <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
-                              Live results — updates in real-time as votes are cast
-                            </p>
-                          </div>
                           {election.positions.map((pos, pi) => (
                             <motion.div key={pos.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: (ei * 0.1) + (pi * 0.05) }}>
                               <div className="mb-3 flex items-center justify-between">
                                 <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{pos.title}</h4>
                                 <span className="text-[10px] text-muted-foreground">{pos.totalVotes ?? 0} votes</span>
                               </div>
-                              <div className="space-y-3">
-                                {pos.candidates.map((cand, ci) => (
-                                  <div key={cand.id} className="flex items-center gap-3">
-                                    <Avatar className="h-10 w-10 shrink-0">
-                                      {cand.photo ? <AvatarImage src={cand.photo} alt={cand.name} /> : <AvatarFallback className="bg-primary/10 text-xs text-primary">{initials(cand.name)}</AvatarFallback>}
-                                    </Avatar>
-                                    <div className="min-w-0 flex-1">
-                                      <div className="flex items-center justify-between gap-2">
-                                        <span className="truncate text-sm font-medium">{cand.name}</span>
-                                        <span className="shrink-0 text-sm font-bold tabular-nums text-primary">{cand.percentage?.toFixed(1) ?? 0}%</span>
-                                      </div>
-                                      <div className="mt-1 h-2 overflow-hidden rounded-full bg-muted">
-                                        <motion.div
-                                          className={`h-full rounded-full ${ci === 0 && (cand.voteCount ?? 0) > 0 ? "bg-primary" : "bg-primary/40"}`}
-                                          initial={{ width: 0 }}
-                                          animate={{ width: `${cand.percentage ?? 0}%` }}
-                                          transition={{ duration: 0.8, ease: "easeOut" }}
-                                        />
-                                      </div>
-                                      <p className="mt-0.5 text-[10px] text-muted-foreground">{cand.voteCount ?? 0} votes</p>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
+                              <CandidateResultsBoard
+                                candidates={pos.candidates.map((c) => ({
+                                  id: c.id,
+                                  name: c.name,
+                                  photo: c.photo,
+                                  position: pos.title,
+                                  bio: c.bio,
+                                  voteCount: c.voteCount,
+                                  percentage: c.percentage,
+                                }))}
+                                showLiveResults={true}
+                                totalVotes={pos.totalVotes ?? 0}
+                                totalVoters={election.totalVoters ?? 0}
+                              />
                             </motion.div>
                           ))}
                         </div>
@@ -408,31 +393,17 @@ export default function OrgHomePage() {
                                 <span className="text-[10px] text-muted-foreground">{pos.totalVotes ?? 0} total votes</span>
                               </div>
                               <div className="space-y-3">
-                                {pos.candidates.map((cand, ci) => (
-                                  <div key={cand.id} className="flex items-center gap-3">
-                                    <Avatar className="h-12 w-12 shrink-0 border-2">
-                                      {cand.photo ? <AvatarImage src={cand.photo} alt={cand.name} /> : <AvatarFallback className="bg-primary/10 text-sm font-bold text-primary">{initials(cand.name)}</AvatarFallback>}
-                                    </Avatar>
-                                    <div className="min-w-0 flex-1">
-                                      <div className="flex items-center justify-between gap-2">
-                                        <div className="flex items-center gap-1.5">
-                                          {ci === 0 && (cand.voteCount ?? 0) > 0 && <Crown className="h-3.5 w-3.5 text-amber-500" />}
-                                          <span className="truncate text-sm font-semibold">{cand.name}</span>
-                                        </div>
-                                        <span className="shrink-0 text-base font-bold tabular-nums text-primary">{cand.percentage?.toFixed(1) ?? 0}%</span>
-                                      </div>
-                                      <div className="mt-1 h-3 overflow-hidden rounded-full bg-muted">
-                                        <motion.div
-                                          className={`h-full rounded-full ${ci === 0 && (cand.voteCount ?? 0) > 0 ? "bg-gradient-to-r from-primary to-chart-2" : "bg-primary/40"}`}
-                                          initial={{ width: 0 }}
-                                          animate={{ width: `${cand.percentage ?? 0}%` }}
-                                          transition={{ duration: 1, ease: "easeOut", delay: 0.2 }}
-                                        />
-                                      </div>
-                                      <p className="mt-0.5 text-[10px] text-muted-foreground">{cand.voteCount ?? 0} votes</p>
-                                    </div>
-                                  </div>
-                                ))}
+                                <CandidateResultsBoard
+                                  candidates={pos.candidates.map((c) => ({
+                                    id: c.id,
+                                    name: c.name,
+                                    photo: c.photo,
+                                    position: pos.title,
+                                    voteCount: c.voteCount,
+                                    percentage: c.percentage,
+                                  }))}
+                                  showLiveResults={false}
+                                />
                               </div>
                             </div>
                           ))}
@@ -477,7 +448,8 @@ export default function OrgHomePage() {
                 <div className="flex flex-col items-center justify-center gap-3 rounded-xl bg-muted/30 p-4">
                   <img src="/logo.svg" alt="Votewise" className="h-8 w-auto opacity-70" />
                   <p className="text-center text-xs text-muted-foreground">
-                    This election is powered by <strong>Votewise</strong> — built by Okomba Analytics.
+                    This election is powered by <strong>Votewise</strong> — built by{" "}
+                    <a href="https://okomba.com" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">Okomba Analytics</a>.
                   </p>
                   <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                     <ShieldCheck className="h-3 w-3 text-primary" />
@@ -494,7 +466,8 @@ export default function OrgHomePage() {
       <footer className="border-t bg-secondary/30">
         <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-2 px-4 py-5 text-center text-xs text-muted-foreground sm:flex-row sm:text-left">
           <p>
-            © {new Date().getFullYear()} {org.name}. Powered by Votewise — built by Okomba Analytics.
+            © {new Date().getFullYear()} {org.name}. Powered by Votewise — built by{" "}
+            <a href="https://okomba.com" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">Okomba Analytics</a>.
           </p>
           <p className="flex items-center gap-1.5">
             <ShieldCheck className="size-3.5 text-primary" />
