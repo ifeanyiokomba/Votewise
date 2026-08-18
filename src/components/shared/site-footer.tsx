@@ -64,8 +64,8 @@ export function SiteFooter() {
           <div className="lg:col-span-2">
             <Logo size="md" />
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
-              Secure, transparent election management for organizations of every
-              size — from student unions to government institutions.
+              Secure, transparent election management for organizations worldwide —
+              from student unions to corporate boards.
             </p>
             <div className="mt-5 flex items-center gap-1.5">
               {SOCIAL.map(({ label, href, Icon }) => (

@@ -27,6 +27,8 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { PasswordInput } from "@/components/shared/password-input";
+import { GoogleAuthButton } from "@/components/shared/google-auth-button";
+import { Separator } from "@/components/ui/separator";
 
 export default function LoginPage() {
   return (
@@ -199,6 +201,19 @@ function LoginForm() {
             {submitting ? "Signing in…" : "Sign in"}
           </Button>
         </form>
+
+        {/* Google sign-in — not shown for platform admin login */}
+        {typeof window !== "undefined" && !window.location.hostname.startsWith("admin.") && !searchParams.get("admin") && (
+          <div className="mt-4">
+            <div className="relative mb-4">
+              <Separator />
+              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
+                or continue with
+              </span>
+            </div>
+            <GoogleAuthButton />
+          </div>
+        )}
       </CardContent>
 
       <CardFooter className="justify-center text-sm">

@@ -31,6 +31,7 @@ export async function POST(request: Request) {
         passwordHash,
         role: "ORG_OWNER",
         emailVerified: new Date(),
+        phone: parsed.phone, // For SMS password recovery + notifications
       },
     });
 

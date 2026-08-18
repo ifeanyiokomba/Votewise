@@ -115,6 +115,8 @@ const PUBLIC_ROUTES = [
   "/verify-ballot",
   "/pricing",
   "/api/auth",
+  "/api/auth/google",
+  "/api/auth/google/callback",
   "/api/webhooks",
   "/api/health",
   "/api/public",

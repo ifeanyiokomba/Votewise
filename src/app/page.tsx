@@ -858,7 +858,7 @@ function Testimonials() {
         <SectionHeading
           eyebrow="Case studies"
           title="Trusted by institutions that cannot afford a dispute"
-          description="Universities, chambers and associations across Africa run their most sensitive elections on Votewise."
+          description="Universities, associations, and organizations worldwide run their most sensitive elections on Votewise."
         />
         <div className="mt-12 grid gap-5 md:grid-cols-3">
           {TESTIMONIALS.map((t, i) => (
@@ -1067,7 +1067,7 @@ function FinalCta() {
             </div>
             <div className="mt-6 flex items-center justify-center gap-1.5 text-xs text-primary-foreground/70">
               <Logo size="sm" className="[&_span]:text-primary-foreground" />
-              <span>{APP_NAME} — trusted by institutions across Africa</span>
+              <span>{APP_NAME} — trusted by institutions worldwide</span>
             </div>
           </div>
         </div>

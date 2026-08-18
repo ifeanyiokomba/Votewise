@@ -9,6 +9,7 @@ export const registerSchema = z
       .min(8, "Password must be at least 8 characters")
       .regex(/[A-Z]/, "Include at least one uppercase letter")
       .regex(/[0-9]/, "Include at least one number"),
+    phone: z.string().min(5, "Phone number is required").max(20),
     organizationName: z.string().min(2, "Organization name is required").max(120),
     preferredSubdomain: z
       .string()

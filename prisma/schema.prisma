@@ -222,6 +222,7 @@ model User {
   emailVerified        DateTime?
   // VW-007: mfaEnabled/mfaSecret removed — no MFA code paths exist.
   // Re-add when full TOTP enrollment + verification is implemented.
+  phone                String?  // For SMS password recovery + notifications
   avatar               String?
   isActive             Boolean   @default(true)
   lastLoginAt          DateTime?
