@@ -378,6 +378,11 @@ model VotingSession {
 
   @@index([voterId, electionId])
   @@index([electionId])
+  // SECURITY (F-15): Only one session per voter per election.
+  // This DB-level constraint prevents race conditions where two near-simultaneous
+  // requests could each create a session for the same voter. Combined with the
+  // hasVoted() check in VoteService, this makes double-voting impossible.
+  @@unique([voterId, electionId])
 }
 
 model Vote {

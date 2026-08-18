@@ -23,7 +23,8 @@ export async function POST(request: Request, { params }: Params) {
   try {
     const user = await requireOrgAdmin();
     const { id } = await params;
-    await OrganizationService.getElectionOrFail(id, user.organizationId!);
+    const election = await OrganizationService.getElectionOrFail(id, user.organizationId!);
+    OrganizationService.assertElectionNotLocked(election.status);
     const body = await request.json();
     const parsed = positionSchema.parse(body);
     const position = await PositionService.create(id, parsed);

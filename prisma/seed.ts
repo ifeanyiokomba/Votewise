@@ -14,11 +14,11 @@ async function main() {
   console.log("🌱 Seeding Votewise...");
 
   // ── Platform admin ──────────────────────────────────────────────
-  // SECURITY: Password is sourced from env var — never hardcoded in production.
-  // For dev, falls back to a known value. In production, SEED_ADMIN_PASSWORD must be set.
-  const adminPwd = process.env.SEED_ADMIN_PASSWORD ?? "Ntaokomba91615";
-  if (process.env.NODE_ENV === "production" && !process.env.SEED_ADMIN_PASSWORD) {
-    console.error("❌ SEED_ADMIN_PASSWORD must be set in production.");
+  // SECURITY (F-05): Password is ALWAYS sourced from env var. No hardcoded fallback.
+  const adminPwd = process.env.SEED_ADMIN_PASSWORD;
+  if (!adminPwd || adminPwd.length < 8) {
+    console.error("❌ SEED_ADMIN_PASSWORD must be set (min 8 chars) to seed the database.");
+    console.error("   Example: SEED_ADMIN_PASSWORD=YourSecurePassword bun run prisma:seed");
     process.exit(1);
   }
   const adminPassword = await bcrypt.hash(adminPwd, 12);
@@ -38,7 +38,11 @@ async function main() {
   }
 
   // ── Demo organization + owner ──────────────────────────────────
-  const demoPwd = process.env.SEED_ORG_PASSWORD ?? "ChangeMe123!";
+  const demoPwd = process.env.SEED_ORG_PASSWORD;
+  if (!demoPwd || demoPwd.length < 8) {
+    console.error("❌ SEED_ORG_PASSWORD must be set (min 8 chars) to seed the demo org.");
+    process.exit(1);
+  }
   const demoPassword = await bcrypt.hash(demoPwd, 12);
   let demoUser = await db.user.findFirst({
     where: { email: "demo@votewise.com.ng", organizationId: null },

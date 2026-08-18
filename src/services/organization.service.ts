@@ -111,4 +111,20 @@ export class OrganizationService {
     }
     return election;
   }
+
+  /**
+   * Check if an election is "locked" — i.e., candidates/positions
+   * cannot be modified. An election is locked when it's LIVE or
+   * any status after LIVE (CLOSED, RESULTS_REVIEW, PUBLISHED, ARCHIVED).
+   *
+   * SECURITY (F-08): Prevents mid-election candidate tampering.
+   */
+  static assertElectionNotLocked(status: string): void {
+    const lockedStatuses = ["LIVE", "CLOSED", "RESULTS_REVIEW", "PUBLISHED", "ARCHIVED"];
+    if (lockedStatuses.includes(status)) {
+      throw new ForbiddenError(
+        "Election configuration is locked. Candidates and positions cannot be modified while the election is live or has closed."
+      );
+    }
+  }
 }

@@ -10,7 +10,8 @@ export async function PATCH(request: Request, { params }: Params) {
   try {
     const user = await requireOrgAdmin();
     const { id, positionId } = await params;
-    await OrganizationService.getElectionOrFail(id, user.organizationId!);
+    const election = await OrganizationService.getElectionOrFail(id, user.organizationId!);
+    OrganizationService.assertElectionNotLocked(election.status);
     const body = await request.json();
     const parsed = positionSchema.partial().parse(body);
     const position = await PositionService.update(positionId, parsed);
@@ -24,7 +25,8 @@ export async function DELETE(_req: Request, { params }: Params) {
   try {
     const user = await requireOrgAdmin();
     const { id, positionId } = await params;
-    await OrganizationService.getElectionOrFail(id, user.organizationId!);
+    const election = await OrganizationService.getElectionOrFail(id, user.organizationId!);
+    OrganizationService.assertElectionNotLocked(election.status);
     await PositionService.delete(positionId);
     return ok({ deleted: true });
   } catch (e) {

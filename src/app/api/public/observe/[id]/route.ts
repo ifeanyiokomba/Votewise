@@ -1,17 +1,29 @@
 import { ok, handleError, fail } from "@/lib/api-response";
 import { db } from "@/lib/db";
 import { ResultService } from "@/services/result.service";
+import { getCurrentUser } from "@/lib/session";
 
 type Params = { params: Promise<{ id: string }> };
 
 /**
- * Public observer view — read-only election health metrics.
+ * Observer view — read-only election health metrics.
+ *
+ * SECURITY (F-14): Requires authentication. The caller must be either:
+ * - A platform admin, OR
+ * - An org member (any role) of the org that owns this election, OR
+ * - A registered observer for this specific election
+ *
  * Returns turnout, verification rates, and (if published) results.
  * Never exposes voter identities or individual ballot choices.
  */
 export async function GET(_req: Request, { params }: Params) {
   try {
     const { id } = await params;
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return fail("Authentication required to observe this election.", "UNAUTHORIZED", 401);
+    }
 
     const election = await db.election.findUnique({
       where: { id },
@@ -24,6 +36,7 @@ export async function GET(_req: Request, { params }: Params) {
         endTime: true,
         timezone: true,
         type: true,
+        organizationId: true,
         organization: {
           select: { name: true, slug: true, logo: true },
         },
@@ -31,6 +44,22 @@ export async function GET(_req: Request, { params }: Params) {
     });
 
     if (!election) return fail("Election not found", "NOT_FOUND", 404);
+
+    // Authorization: platform admin, org member, or registered observer
+    const isPlatformAdmin = user.role === "PLATFORM_ADMIN";
+    const isOrgMember = user.organizationId === election.organizationId;
+
+    let isObserver = false;
+    if (!isPlatformAdmin && !isOrgMember) {
+      const observerRecord = await db.observer.findFirst({
+        where: { electionId: id, userId: user.id },
+      });
+      isObserver = !!observerRecord;
+    }
+
+    if (!isPlatformAdmin && !isOrgMember && !isObserver) {
+      return fail("You are not authorized to observe this election.", "FORBIDDEN", 403);
+    }
 
     // Compute aggregate stats (no voter-identifying data)
     const [voters, verified, completedVotes, activeSessions, candidates, positions] =
