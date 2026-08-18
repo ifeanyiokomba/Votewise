@@ -15,10 +15,14 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/login?error=google_not_configured", request.url));
   }
 
-  // Build redirect URI from the actual request URL — ensures it always matches
-  // what's registered in Google Cloud Console regardless of www/non-www
-  const requestUrl = new URL(request.url);
-  const origin = requestUrl.origin; // e.g. https://votewise.com.ng or https://www.votewise.com.ng
+  // Build the redirect URI using the actual host the user visited.
+  // Vercel sets x-forwarded-host to the real domain (e.g. www.votewise.com.ng)
+  // and x-forwarded-proto to the protocol (https).
+  // This ensures the redirect URI always matches what's in Google Cloud Console.
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const forwardedProto = request.headers.get("x-forwarded-proto") ?? "https";
+  const host = forwardedHost ?? new URL(request.url).host;
+  const origin = `${forwardedProto}://${host}`;
   const redirectUri = `${origin}/api/auth/google/callback`;
 
   const state = Buffer.from(
@@ -34,5 +38,7 @@ export async function GET(request: Request) {
     prompt: "select_account",
   });
 
-  return NextResponse.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
+  const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
+
+  return NextResponse.redirect(googleAuthUrl);
 }

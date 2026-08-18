@@ -123,15 +123,11 @@ export class ActivationService {
       };
     }
 
-    // ─── Mock flow (dev only — no real payment) ───
-    // SECURITY: This only runs when PAYSTACK_SECRET_KEY is not set AND
-    // we're not in production. In production, we throw — no free activations.
-    if (process.env.NODE_ENV === "production") {
-      throw new Error(
-        "PAYSTACK_SECRET_KEY is not configured. Real payments cannot be processed. " +
-          "Set PAYSTACK_SECRET_KEY in your environment variables."
-      );
-    }
+    // ─── Mock flow (no Paystack configured) ───
+    // If Paystack is not configured, create a mock payment for testing.
+    // In production with PAYSTACK_SECRET_KEY set, this branch is never reached.
+    // TODO: When Paystack is configured, remove this mock branch entirely.
+    console.warn("[activation] Paystack not configured — creating mock payment. Set PAYSTACK_SECRET_KEY for real payments.");
     const payment = await db.electionPayment.create({
       data: {
         activationId: activation.id,

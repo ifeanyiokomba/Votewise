@@ -13,9 +13,11 @@ export async function GET(request: Request) {
   const stateParam = searchParams.get("state");
   const error = searchParams.get("error");
 
-  // Use the request's own origin for redirects (handles www/non-www automatically)
-  const requestUrl = new URL(request.url);
-  const origin = requestUrl.origin;
+  // Build origin from forwarded headers (same as the auth route)
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const forwardedProto = request.headers.get("x-forwarded-proto") ?? "https";
+  const host = forwardedHost ?? new URL(request.url).host;
+  const origin = `${forwardedProto}://${host}`;
 
   if (error) {
     return NextResponse.redirect(new URL(`/login?error=google_${error}`, origin));
@@ -42,7 +44,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/login?error=google_not_configured", origin));
   }
 
-  // Build redirect URI from the request's origin — must match what was sent in the auth request
+  // Build redirect URI — MUST match what was sent in the auth request
   const redirectUri = `${origin}/api/auth/google/callback`;
 
   // Exchange code for tokens
